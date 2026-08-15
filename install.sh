@@ -21,9 +21,29 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
+# Sign-in happens here rather than sending people off to read gh's docs: gh opens
+# github.com in the browser and prints a one-time code to paste there.
 if ! gh auth status >/dev/null 2>&1; then
-  echo "You are not logged in to GitHub. Run:  gh auth login"
-  exit 1
+  echo "You are not signed in to GitHub."
+  read -r -p "Open github.com in your browser to sign in now? [Y/n]: " SIGNIN
+  case "${SIGNIN:-y}" in
+    [Yy]*)
+      echo
+      echo "gh will ask two short setup questions, then open github.com with a"
+      echo "one-time code (copied to your clipboard). Paste it there, then come back."
+      echo
+      gh auth login --hostname github.com --git-protocol https --web --clipboard
+      ;;
+    *)
+      echo "Skipped. Run 'gh auth login' when you are ready, then re-run install.sh."
+      exit 1
+      ;;
+  esac
+  if ! gh auth status >/dev/null 2>&1; then
+    echo "Sign-in did not complete. Run 'gh auth login' and try again."
+    exit 1
+  fi
+  echo "Signed in."
 fi
 
 if ! python3 -c "import openpyxl" >/dev/null 2>&1; then

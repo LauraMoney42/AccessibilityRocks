@@ -31,11 +31,27 @@ python3 track_a11y.py --owner your-username
 
 ## Requirements
 
-- [GitHub CLI](https://cli.github.com): `brew install gh`, then `gh auth login`
+- [GitHub CLI](https://cli.github.com): `brew install gh`
 - Python 3.9+ with `openpyxl` (the installer adds it if missing)
 
-There is no API key to create. The tool reuses the token `gh` already holds, which also
-means private repos you can see are included.
+## Signing in
+
+You do not need to create an API key or run any auth command yourself. If you are not
+signed in, the installer offers to open github.com in your browser:
+
+```
+You are not signed in to GitHub.
+Open github.com in your browser to sign in now? [Y/n]:
+```
+
+Say yes and GitHub's own sign-in page opens with a one-time code (copied to your
+clipboard on macOS). Paste it, approve, and the installer picks up from there. The token
+is stored in your system keychain by `gh`, not in this project, and it covers private
+repos you can see.
+
+`track_a11y.py` offers the same thing if you run it by hand while signed out. The weekly
+background job never prompts: with no terminal to type a code into it would hang, so it
+writes "GitHub sign-in has expired" to `a11y-tracker.log` and exits instead.
 
 ## What you get
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-14 19:07
+- Browser sign-in: when no GitHub session exists, the installer and the script now offer
+  to open github.com through `gh auth login --web` instead of printing a command to run
+- One-time code is copied to the clipboard on macOS via `--clipboard`
+- Sign-in is gated on `sys.stdin.isatty()`, so the weekly launchd job logs
+  "GitHub sign-in has expired" and exits rather than hanging on a prompt no one can see
+- Added a heads-up line about gh's own two setup questions before handing off
+- Tested with a sandboxed `GH_CONFIG_DIR` and a real pty: decline path, non-tty path, and
+  the handoff to gh (killed before the browser opened). Real credentials untouched.
+- Files affected: `track_a11y.py`, `install.sh`, `README.md`, `PROJECT_OVERVIEW.md`
+
 ## 2026-08-14 19:01
 - Switched the schedule from daily to weekly: the installer now asks for a day of the
   week and an `HH:MM` time, and writes a `Weekday` key into the launchd plist

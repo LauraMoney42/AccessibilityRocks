@@ -42,8 +42,14 @@ and private repos the user can see are covered automatically.
 
 - **No `--state` flag on `gh search issues`.** It only accepts `open|closed`; omitting it
   returns both, which is what the closed-item history needs.
-- **`preflight()` runs before anything else.** A shared tool fails on missing `gh`, a
-  missing login, or missing openpyxl, so each one exits with the exact fix command.
+- **`preflight()` runs before anything else.** A shared tool fails on missing `gh` or
+  missing openpyxl, so each one exits with the exact fix command.
+- **Sign-in is offered, not instructed.** `ensure_auth()` and the installer both hand off
+  to `gh auth login --web`, which opens github.com with a one-time code, rather than
+  telling the user to go read gh's docs. Guarded by `sys.stdin.isatty()`: under launchd
+  there is no terminal to type a code into, so the scheduled run exits with a message in
+  the log instead of hanging on stdin forever.
+- **`--clipboard` only on macOS.** It needs a clipboard tool that Linux may not have.
 - **Owner defaults to `gh api user --jq .login`.** Zero-argument runs work for whoever
   cloned it. `--owner a,b` supports people who own both a user and an org.
 - **The label audit is optional.** It costs one API call per repo, which matters on a

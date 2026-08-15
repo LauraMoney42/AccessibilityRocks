@@ -54,9 +54,7 @@ def preflight():
             "Then run: gh auth login"
         )
 
-    status = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True)
-    if status.returncode != 0:
-        sys.exit("Not logged in to GitHub. Run: gh auth login")
+    ensure_auth()
 
     try:
         import openpyxl  # noqa: F401
@@ -65,6 +63,47 @@ def preflight():
             "Missing dependency openpyxl. Install it with:\n"
             "  python3 -m pip install --user openpyxl"
         )
+
+
+def is_authed():
+    return subprocess.run(["gh", "auth", "status"],
+                          capture_output=True, text=True).returncode == 0
+
+
+def ensure_auth():
+    """Sign in through the browser if needed.
+
+    Only offered when a human is at the keyboard. Under launchd there is no
+    terminal to type a device code into, so the scheduled run fails loudly in
+    the log instead of hanging forever waiting on stdin.
+    """
+    if is_authed():
+        return
+
+    if not sys.stdin.isatty():
+        sys.exit("GitHub sign-in has expired. Run this by hand to sign in again:\n"
+                 f"  python3 {os.path.abspath(__file__)}")
+
+    print("You are not signed in to GitHub.")
+    answer = input("Open github.com in your browser to sign in now? [Y/n]: ").strip().lower()
+    if answer and not answer.startswith("y"):
+        sys.exit("Skipped. Run 'gh auth login' when you are ready.")
+
+    print("\ngh will ask two short setup questions, then open github.com with a\n"
+          "one-time code. Paste the code in the browser and come back here.\n")
+
+    # No capture_output here: gh prints the one-time code the user has to see and
+    # opens the browser itself. --clipboard copies the code so there is nothing to
+    # retype, and it needs a clipboard tool that only macOS is guaranteed to have.
+    cmd = ["gh", "auth", "login", "--hostname", "github.com",
+           "--git-protocol", "https", "--web"]
+    if sys.platform == "darwin":
+        cmd.append("--clipboard")
+    subprocess.run(cmd)
+
+    if not is_authed():
+        sys.exit("Sign-in did not complete. Run 'gh auth login' and try again.")
+    print("Signed in.\n")
 
 
 def current_login():
