@@ -1,7 +1,17 @@
-# a11y-tracker
+# AccessibilityRocks
 
-A spreadsheet of accessibility issues on GitHub: the ones worth contributing to across
-all public repos, and the ones sitting in your own.
+**[Browse the dashboard](https://lauramoney42.github.io/AccessibilityRocks/)** · accessibility issues in open source that need help.
+
+[![issues](https://img.shields.io/endpoint?url=https://lauramoney42.github.io/AccessibilityRocks/badge-issues.json)](https://lauramoney42.github.io/AccessibilityRocks/)
+[![good first issues](https://img.shields.io/endpoint?url=https://lauramoney42.github.io/AccessibilityRocks/badge-gfi.json)](https://lauramoney42.github.io/AccessibilityRocks/)
+[![fixes merged](https://img.shields.io/endpoint?url=https://lauramoney42.github.io/AccessibilityRocks/badge-fixes.json)](https://lauramoney42.github.io/AccessibilityRocks/)
+
+A spreadsheet and dashboard of accessibility issues on GitHub: the ones worth contributing
+to across all public repos, and the ones sitting in your own.
+
+The badges above are live. They read three small JSON files that regenerate every Monday,
+so nothing is hardcoded and there is no badge service to sign up for. Copy the markdown
+from this file to put them anywhere.
 
 **No sign-in, no API key, no install steps.** One command:
 
@@ -26,6 +36,8 @@ supported and adds private repos, but it is never required.
 
 ## The dashboard
 
+**Live at [lauramoney42.github.io/AccessibilityRocks/](https://lauramoney42.github.io/AccessibilityRocks/)**
+
 `docs/index.html` is a browsable version for people who want to *find* work rather than
 audit their own repos: search, filter by specialty and language, sort by stars or by how
 long an issue has sat untouched, and keep a personal list.
@@ -38,6 +50,18 @@ To host it free on GitHub Pages from your own repo:
 
 It then refreshes itself every Monday. The workflow uses the built-in Actions token, so
 there is no secret to create, and `docs/data.json` only ever contains public issues.
+
+## The scoreboard
+
+The dashboard ranks people who actually merged accessibility fixes in the last 90 days.
+That number is verifiable: a merged pull request carrying an accessibility label is a fact
+the GitHub API will confirm, which is why the board uses it instead of anything
+self-reported.
+
+Ranking counts at most five fixes per project. Raw totals let one project's backlog own
+the board, and ranking purely on how many projects someone touched lets two drive-by fixes
+beat twenty-five real ones. Fixes to your own repositories are excluded, since the point
+is helping someone else's users.
 
 The "Your list" panel and its milestones are stored in the visitor's own browser. There
 is no account and no server, so nothing there is verified: it tracks what someone picked,

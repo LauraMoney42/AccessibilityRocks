@@ -30,7 +30,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 API = "https://api.github.com"
 
@@ -189,7 +189,7 @@ TOKEN = None  # set in main()
 RATE_LIMITED = False  # set once anonymous budget runs out, to stop retrying
 
 
-def request(url, data=None, retries=3, soft=False):
+def request(url, data=None, retries=3, soft=False, permissive=False):
     """soft=True means a rate limit returns None instead of ending the run.
 
     Used for the optional star lookups: losing a popularity number is worth far
@@ -215,6 +215,17 @@ def request(url, data=None, retries=3, soft=False):
             if err.code in (403, 429) and soft:
                 RATE_LIMITED = True
                 return None
+            if err.code == 403:
+                # An Actions GITHUB_TOKEN answers 403 "Resource not accessible by
+                # integration" for endpoints outside its scope, which is a
+                # permissions answer, not a rate limit. Only back off on a real one.
+                body = err.read().decode(errors="replace")
+                if "rate limit" not in body.lower():
+                    if permissive:
+                        return None
+                    sys.exit(f"GitHub refused {url}\n{body[:200]}")
+                err = urllib.error.HTTPError(url, 403, body, err.headers, None)
+                err.cached_body = body
             # Search is limited to 10 requests a minute without a token, and
             # GitHub answers a burst with 403 rather than a 429.
             if err.code in (403, 429) and attempt < retries - 1:
@@ -224,7 +235,8 @@ def request(url, data=None, retries=3, soft=False):
                 continue
             if err.code == 404:
                 return None
-            detail = err.read().decode(errors="replace")[:200]
+            detail = getattr(err, "cached_body", None) or err.read().decode(errors="replace")
+            detail = detail[:200]
             if err.code in (403, 429):
                 hint = ("\nHint: set GH_TOKEN or run 'gh auth login' for a much higher limit."
                         if not TOKEN else "")
@@ -481,6 +493,60 @@ def search_untagged(labels, per_phrase, big_owners, drop_big, per_repo, seen_url
     return rows
 
 
+def search_fixers(labels, since_days=90, limit=300):
+    """People who actually merged accessibility fixes recently.
+
+    This is the one leaderboard that can be honest: a merged PR carrying an
+    accessibility label is a fact GitHub will confirm, unlike anything a static
+    page could self-report. Grouped by author, most fixes first.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=since_days)).strftime("%Y-%m-%d")
+    query = f"{label_query(labels)} is:pr is:merged is:public merged:>={cutoff}"
+    people, projects = {}, {}
+
+    for pr in search_rest(query, limit, sort="updated"):
+        user = (pr.get("user") or {}).get("login")
+        if not user or user.endswith("[bot]"):
+            continue
+        repo = "/".join(pr["repository_url"].split("/")[-2:])
+        # Fixing your own project is good work, but this board is about helping
+        # someone else's users, and self-owned repos otherwise dominate it.
+        if repo.split("/")[0].lower() == user.lower():
+            continue
+        p = people.setdefault(user, {
+            "login": user,
+            "avatar": (pr.get("user") or {}).get("avatar_url", ""),
+            "url": (pr.get("user") or {}).get("html_url", ""),
+            "count": 0, "repos": set(), "by_repo": {}, "latest": "",
+        })
+        p["count"] += 1
+        p["repos"].add(repo)
+        p["by_repo"][repo] = p["by_repo"].get(repo, 0) + 1
+        p["latest"] = max(p["latest"], pr.get("closed_at") or "")
+        projects[repo] = projects.get(repo, 0) + 1
+
+    # Each repo contributes at most 5 to the ranking score. Raw count lets one
+    # project's backlog own the board; pure breadth lets two drive-by fixes beat
+    # twenty-five real ones. Capping per repo rewards both without either
+    # swamping the other.
+    for p in people.values():
+        p["score"] = sum(min(n, 5) for n in p["by_repo"].values())
+        p["projects"] = len(p["repos"])
+    ranked = sorted(people.values(),
+                    key=lambda x: (-x["score"], -x["count"], x["login"].lower()))
+    for p in ranked:
+        p["repos"] = sorted(p["repos"])[:4]
+        p.pop("by_repo", None)
+    top_projects = sorted(projects.items(), key=lambda kv: -kv[1])[:12]
+    return {
+        "window_days": since_days,
+        "since": cutoff,
+        "people": ranked[:40],
+        "projects": [{"repo": r, "count": c} for r, c in top_projects],
+        "total": sum(p["count"] for p in people.values()),
+    }
+
+
 def add_stars(rows):
     """Fill in star counts for rows that arrived without them (GraphQL, batched)."""
     missing = sorted({r["repo"] for r in rows if r["stars"] is None})
@@ -574,7 +640,7 @@ def fetch_owner_repos(owners):
     """Public repos always. Private ones too when the token owns them."""
     me = None
     if TOKEN:
-        who = request(f"{API}/user")
+        who = request(f"{API}/user", permissive=True)
         me = (who or {}).get("login")
 
     repos = []
@@ -614,7 +680,7 @@ def parse_ts(value):
     return datetime.fromisoformat(value.replace("Z", "+00:00")) if value else None
 
 
-def write_json(global_rows, owners, out_path):
+def write_json(global_rows, fixers, owners, out_path):
     """Data file for the dashboard. Kept flat and small: it ships to a browser.
 
     Public issues only. Your own repos are deliberately left out: this file is
@@ -649,9 +715,27 @@ def write_json(global_rows, owners, out_path):
         "owners": owners,
         "areas": [a for a, _ in AREAS] + [GENERAL],
         "issues": issues,
+        "fixers": fixers or {},
     }
     with open(out_path, "w") as fh:
         json.dump(payload, fh, separators=(",", ":"))
+
+    # shields.io endpoint format, so a README badge stays current without a
+    # service in the middle: shields fetches these files directly.
+    live = [i for i in issues if not i["big"]]
+    badges = {
+        "badge-issues.json": {"label": "a11y issues to fix", "message": str(len(live)),
+                              "color": "blue"},
+        "badge-gfi.json": {"label": "good first issues",
+                           "message": str(sum(1 for i in live if i["gfi"])), "color": "brightgreen"},
+        "badge-fixes.json": {"label": f"fixes merged ({(fixers or {}).get('window_days', 90)}d)",
+                             "message": str((fixers or {}).get("total", 0)), "color": "orange"},
+    }
+    folder = os.path.dirname(out_path)
+    for name, body in badges.items():
+        with open(os.path.join(folder, name), "w") as fh:
+            json.dump({"schemaVersion": 1, **body}, fh)
+
     return len(issues)
 
 
@@ -889,6 +973,10 @@ def main():
                     help="skip reading issue bodies (faster, but vaguer labels)")
     ap.add_argument("--classify-cap", type=int, default=600,
                     help="most issues to read in full for labeling, default 600")
+    ap.add_argument("--no-scoreboard", action="store_true",
+                    help="skip the merged-fix leaderboard")
+    ap.add_argument("--scoreboard-days", type=int, default=90,
+                    help="how far back the leaderboard looks, default 90 days")
     ap.add_argument("--no-untagged", action="store_true",
                     help="skip the search for accessibility work nobody labeled")
     ap.add_argument("--untagged-per-phrase", type=int, default=25,
@@ -915,7 +1003,7 @@ def main():
 
     owner_arg = args.owner or os.environ.get("A11Y_OWNER")
     if not owner_arg and TOKEN:
-        who = request(f"{API}/user")
+        who = request(f"{API}/user", permissive=True)
         owner_arg = (who or {}).get("login")
     if not owner_arg:
         sys.exit("Which GitHub account should I scan? Pass --owner <username>.")
@@ -970,13 +1058,19 @@ def main():
                                         -(r["stars"] if r["stars"] is not None else -1),
                                         -r["comments"]))
 
+    fixers = None
+    if args.json_out and not args.no_scoreboard:
+        fixers = search_fixers(labels, args.scoreboard_days)
+        print(f"  scoreboard: {fixers['total']} accessibility fixes merged by "
+              f"{len(fixers['people'])} people in the last {args.scoreboard_days} days")
+
     mine = search_owner_issues(owners, labels)
     repos = fetch_owner_repos(owners)
     open_mine = build_workbook(global_rows, capped, dropped, mine, repos, owners,
                                labels, filter_note, out_path)
 
     if args.json_out:
-        n = write_json(global_rows, owners, os.path.expanduser(args.json_out))
+        n = write_json(global_rows, fixers, owners, os.path.expanduser(args.json_out))
         print(f"  wrote {n} issues to {args.json_out}")
 
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-14 21:09
+- Published to https://github.com/LauraMoney42/AccessibilityRocks with Pages serving
+  /docs, live at https://lauramoney42.github.io/AccessibilityRocks/
+- Added a scoreboard of people who merged accessibility fixes in the last 90 days, built
+  from merged PRs carrying an accessibility label. Verifiable, unlike self-reported counts.
+- Scoring caps each project at five fixes. Raw counts let one repo's backlog own the board
+  (one contributor had 25 fixes in a single project); pure breadth let two drive-by fixes
+  outrank twenty-five real ones. Self-owned repos are excluded.
+- Added three shields.io endpoint badges regenerated with the data: open issues, good
+  first issues, fixes merged
+- Fixed the Actions run failing with "Resource not accessible by integration": the code
+  treated every 403 as a rate limit, but an Actions token returns 403 for endpoints
+  outside its scope. Permission errors are now distinguished, and the optional identity
+  lookup degrades instead of aborting.
+- Files affected: `track_a11y.py`, `docs/index.html`, `docs/badge-*.json`, `README.md`
+
 ## 2026-08-14 20:56
 - Added a dashboard at `docs/index.html`: search, filter by specialty, language, good
   first issue, and unlabeled; sort by stars, idle time, age, or discussion. One file, no
