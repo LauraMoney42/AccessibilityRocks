@@ -145,8 +145,9 @@
     <p class="sub" id="boardsub"></p>
     <ol class="board" id="boardlist" role="list" aria-label="Top accessibility fixers"></ol>
     <p class="sub small">Merged pull requests carrying an accessibility label, from the
-    GitHub API. Each project counts at most five fixes, so one backlog cannot own the
-    board, and fixes to your own repos are not counted.
+    GitHub API. Fixes to your own repos do not count, each owner counts at most three
+    times so breadth beats volume, and repos under 50 stars are left out. Without those
+    rules the top of this board was one person's two new repos.
     <a href="https://github.com/LauraMoney42/AccessibilityRocks/blob/main/CONTRIBUTORS.md"
        target="_blank" rel="noopener">See everyone on the contributors wall</a>.</p>
 
@@ -306,7 +307,7 @@ function renderBoard() {
     <img src="${esc(p.avatar)}&s=44" alt="" loading="lazy">
     <span class="stack">
       <a class="who" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.login)}</a>
-      <span class="stat">${p.count} fix${p.count === 1 ? "" : "es"} · ${p.projects} project${p.projects === 1 ? "" : "s"}</span>
+      <span class="stat">${p.count} fix${p.count === 1 ? "" : "es"} · ${p.orgs} org${p.orgs === 1 ? "" : "s"}</span>
     </span>
   </li>`).join("");
 }

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-14 21:41
+- Reworked the scoreboard ranking after the top of the board turned out to be one
+  account's two small repos (1 and 22 stars) with a crowd merging into them:
+  - counts distinct **owners**, not repos. Splitting a backlog across two repos under one
+    account was the loophole that produced the bogus number one.
+  - caps each owner at 3 fixes toward the score, so breadth beats volume
+  - ignores repos under 50 stars, added as `--scoreboard-min-stars`
+- The board is now Orange-OpenSource, indico, WebKit, headlamp, scaleway, mozilla, SAP.
+  Total counted fixes dropped from 246 to 81, which is the point: the missing 165 were
+  farming.
+- The star floor needs a token, since it costs a star lookup per repo. Without one the
+  other two rules still apply and the run says the floor was skipped.
+- Dashboard and CONTRIBUTORS.md now show orgs rather than repo counts, and both state the
+  three rules
+- Files affected: `track_a11y.py`, `docs/index.html`, `CONTRIBUTORS.md`, `README.md`
+
 ## 2026-08-14 21:45
 - Removed the "On the wall? Bring someone with you" panel: markup, verification state,
   milestone chips, and the stored username. The contributors wall link moved onto the

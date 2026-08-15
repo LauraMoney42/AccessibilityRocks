@@ -493,57 +493,97 @@ def search_untagged(labels, per_phrase, big_owners, drop_big, per_repo, seen_url
     return rows
 
 
-def search_fixers(labels, since_days=90, limit=300):
-    """People who actually merged accessibility fixes recently.
+def repo_stars(repos):
+    """Star counts for a set of repos, batched. Empty dict without a token."""
+    if not TOKEN or not repos:
+        return {}
+    stars, repos = {}, sorted(repos)
+    for i in range(0, len(repos), 40):
+        chunk = repos[i:i + 40]
+        fields = []
+        for j, full in enumerate(chunk):
+            owner, name = full.split("/", 1)
+            fields.append(f'r{j}: repository(owner: "{owner}", name: "{name}") '
+                          '{ nameWithOwner stargazerCount }')
+        data = graphql("query { " + " ".join(fields) + " }", {}) or {}
+        for value in data.values():
+            if value:
+                stars[value["nameWithOwner"]] = value["stargazerCount"]
+    return stars
 
-    This is the one leaderboard that can be honest: a merged PR carrying an
-    accessibility label is a fact GitHub will confirm, unlike anything a static
-    page could self-report. Grouped by author, most fixes first.
+
+def search_fixers(labels, since_days=90, limit=300, min_stars=50, cap=3):
+    """People who merged accessibility fixes into projects that are not their own.
+
+    Ranking is deliberately hostile to volume farming, because the raw numbers
+    are easy to game and the first version was: the entire top of the board was
+    one person's two small repos with a crowd of contributors merging into them.
+
+    Three rules, in order of how much they mattered:
+      * count distinct OWNERS, not repos. Two repos under the same account is one
+        relationship, not two, and splitting a backlog across repos was the
+        loophole that produced the bogus number one.
+      * cap each owner at `cap` fixes toward the score, so breadth beats depth.
+      * ignore repos under `min_stars`, since a brand new repo with a crowd of
+        contributors is a hackathon, not the open source commons.
+
+    The star floor needs a token. Without one the ranking still applies the other
+    two rules, and the caller is told the floor was skipped.
     """
     cutoff = (datetime.now(timezone.utc) - timedelta(days=since_days)).strftime("%Y-%m-%d")
     query = f"{label_query(labels)} is:pr is:merged is:public merged:>={cutoff}"
-    people, projects = {}, {}
 
+    raw, meta = {}, {}
     for pr in search_rest(query, limit, sort="updated"):
         user = (pr.get("user") or {}).get("login")
         if not user or user.endswith("[bot]"):
             continue
         repo = "/".join(pr["repository_url"].split("/")[-2:])
         # Fixing your own project is good work, but this board is about helping
-        # someone else's users, and self-owned repos otherwise dominate it.
+        # someone else's users.
         if repo.split("/")[0].lower() == user.lower():
             continue
-        p = people.setdefault(user, {
-            "login": user,
-            "avatar": (pr.get("user") or {}).get("avatar_url", ""),
-            "url": (pr.get("user") or {}).get("html_url", ""),
-            "count": 0, "repos": set(), "by_repo": {}, "latest": "",
-        })
-        p["count"] += 1
-        p["repos"].add(repo)
-        p["by_repo"][repo] = p["by_repo"].get(repo, 0) + 1
-        p["latest"] = max(p["latest"], pr.get("closed_at") or "")
-        projects[repo] = projects.get(repo, 0) + 1
+        raw.setdefault(user, {}).setdefault(repo, 0)
+        raw[user][repo] += 1
+        meta.setdefault(user, {"avatar": (pr.get("user") or {}).get("avatar_url", ""),
+                               "url": (pr.get("user") or {}).get("html_url", "")})
 
-    # Each repo contributes at most 5 to the ranking score. Raw count lets one
-    # project's backlog own the board; pure breadth lets two drive-by fixes beat
-    # twenty-five real ones. Capping per repo rewards both without either
-    # swamping the other.
-    for p in people.values():
-        p["score"] = sum(min(n, 5) for n in p["by_repo"].values())
-        p["projects"] = len(p["repos"])
-    ranked = sorted(people.values(),
-                    key=lambda x: (-x["score"], -x["count"], x["login"].lower()))
-    for p in ranked:
-        p["repos"] = sorted(p["repos"])[:4]
-        p.pop("by_repo", None)
+    all_repos = {r for byrepo in raw.values() for r in byrepo}
+    stars = repo_stars(all_repos) if min_stars else {}
+    floor_applied = bool(stars) and bool(min_stars)
+
+    people, projects = [], {}
+    for login, byrepo in raw.items():
+        qualifying = {r: n for r, n in byrepo.items()
+                      if not floor_applied or stars.get(r, 0) >= min_stars}
+        if not qualifying:
+            continue
+        by_owner = {}
+        for repo, n in qualifying.items():
+            owner = repo.split("/")[0]
+            by_owner[owner] = by_owner.get(owner, 0) + n
+            projects[repo] = projects.get(repo, 0) + n
+        people.append({
+            "login": login,
+            "avatar": meta[login]["avatar"],
+            "url": meta[login]["url"],
+            "count": sum(qualifying.values()),
+            "orgs": len(by_owner),
+            "projects": len(qualifying),
+            "score": sum(min(n, cap) for n in by_owner.values()),
+            "repos": sorted(qualifying, key=lambda r: -stars.get(r, 0))[:4],
+        })
+
+    people.sort(key=lambda x: (-x["score"], -x["orgs"], -x["count"], x["login"].lower()))
     top_projects = sorted(projects.items(), key=lambda kv: -kv[1])[:12]
     return {
         "window_days": since_days,
         "since": cutoff,
-        "people": ranked[:40],
+        "min_stars": min_stars if floor_applied else 0,
+        "cap": cap,
+        "people": people[:40],
         "projects": [{"repo": r, "count": c} for r, c in top_projects],
-        "total": sum(p["count"] for p in people.values()),
+        "total": sum(p["count"] for p in people),
     }
 
 
@@ -760,13 +800,13 @@ def write_contributors(fixers, out_path, site_url):
         f"**{fixers.get('total', 0)} fixes** by **{len(people)} people**. "
         f"Regenerated every Monday from the GitHub API, so this list keeps moving.",
         "",
-        "| # | Who | Fixes | Projects | Some of the projects |",
+        "| # | Who | Fixes | Orgs | Projects |",
         "| --- | --- | --- | --- | --- |",
     ]
     for i, p in enumerate(people, 1):
         repos = ", ".join(f"[{r}](https://github.com/{r})" for r in p["repos"][:3])
         lines.append(f"| {i} | [@{p['login']}]({p['url']}) | {p['count']} | "
-                     f"{p['projects']} | {repos} |")
+                     f"{p['orgs']} | {repos} |")
 
     lines += [
         "",
@@ -776,10 +816,12 @@ def write_contributors(fixers, out_path, site_url):
         "2. Fix it and get the pull request merged.",
         "3. That is it. The next Monday refresh picks you up automatically.",
         "",
-        "Only merged pull requests carrying an accessibility label count, and fixes to "
-        "your own repositories are excluded, since the point is helping someone else's "
-        "users. Each project counts at most five fixes toward the ordering, so one large "
-        "backlog cannot take over the list.",
+        "Only merged pull requests carrying an accessibility label count. Three rules "
+        "keep the ordering honest, and they exist because the first version was gamed by "
+        "accident: fixes to your own repositories do not count, each owner counts at most "
+        f"{fixers.get('cap', 3)} times so helping several projects beats grinding one, and "
+        f"repos under {fixers.get('min_stars', 50)} stars are left out. Before those rules "
+        "the entire top of the list was one account's two brand new repos.",
         "",
         "Two merged pull requests also earns you GitHub's own Pull Shark achievement, "
         "which lands on your profile rather than only here.",
@@ -1034,6 +1076,9 @@ def main():
                     help="skip the merged-fix leaderboard")
     ap.add_argument("--scoreboard-days", type=int, default=90,
                     help="how far back the leaderboard looks, default 90 days")
+    ap.add_argument("--scoreboard-min-stars", type=int, default=50,
+                    help="repos below this many stars do not count toward the "
+                         "leaderboard, default 50 (needs a token)")
     ap.add_argument("--no-untagged", action="store_true",
                     help="skip the search for accessibility work nobody labeled")
     ap.add_argument("--untagged-per-phrase", type=int, default=25,
@@ -1117,9 +1162,13 @@ def main():
 
     fixers = None
     if args.json_out and not args.no_scoreboard:
-        fixers = search_fixers(labels, args.scoreboard_days)
+        fixers = search_fixers(labels, args.scoreboard_days,
+                               min_stars=args.scoreboard_min_stars)
+        floor = (f", counting repos with {fixers['min_stars']}+ stars"
+                 if fixers["min_stars"] else ", no star floor (needs a token)")
         print(f"  scoreboard: {fixers['total']} accessibility fixes merged by "
-              f"{len(fixers['people'])} people in the last {args.scoreboard_days} days")
+              f"{len(fixers['people'])} people in the last {args.scoreboard_days} days"
+              + floor)
 
     mine = search_owner_issues(owners, labels)
     repos = fetch_owner_repos(owners)

@@ -83,10 +83,20 @@ That number is verifiable: a merged pull request carrying an accessibility label
 the GitHub API will confirm, which is why the board uses it instead of anything
 self-reported.
 
-Ranking counts at most five fixes per project. Raw totals let one project's backlog own
-the board, and ranking purely on how many projects someone touched lets two drive-by fixes
-beat twenty-five real ones. Fixes to your own repositories are excluded, since the point
-is helping someone else's users.
+Three rules keep the ordering honest, and each one exists because the version before it
+was gamed by accident:
+
+1. **Fixes to your own repos do not count.** The board is about helping someone else's
+   users.
+2. **Each owner counts at most three times.** Not each repo: splitting a backlog across
+   two repos under one account was the loophole that produced a bogus number one.
+3. **Repos under 50 stars are left out.** A brand new repo with a crowd of contributors
+   merging into it is a hackathon, not the open source commons.
+
+Before those rules the entire top of the board was one account's two new repos, at 1 and
+22 stars. After them it is Mozilla, WebKit, indico, scaleway, Orange-OpenSource and
+headlamp. `--scoreboard-min-stars` changes the floor, which needs a token to apply since
+it costs a star lookup per repo.
 
 Everyone who merges a fix also lands on [CONTRIBUTORS.md](CONTRIBUTORS.md), the
 contributors wall, regenerated every Monday. That is a real page in a real repo: linkable,
