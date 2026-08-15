@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-14 22:02
+- Dashboard board now shows outside contributors only. Maintainers moved entirely to the
+  contributors wall, which already had its own section for them, and the board note links
+  there so they are one click away rather than absent.
+- Board subtitle now counts outside contributors rather than everyone, so the number
+  matches the list underneath it
+- Files affected: `docs/index.html`, `README.md`
+
 ## 2026-08-14 21:56
 - Split the scoreboard into two groups instead of one ranking: **Outside contributors**
   first, then **Maintainers, keeping their own projects accessible**. Fixing a project you

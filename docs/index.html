@@ -111,7 +111,6 @@
   .board .who { font-weight: 600; text-decoration: none; color: inherit; }
   .board .who:hover { text-decoration: underline; }
   .board .stat { color: var(--muted); font-size: 11px; }
-  .boardhead { font-size: 13px; margin: 14px 0 0; color: var(--muted); font-weight: 600; }
   a { color: var(--accent); }
 </style>
 </head>
@@ -144,16 +143,13 @@
   <div class="panel" id="board">
     <h2>Who has been fixing these</h2>
     <p class="sub" id="boardsub"></p>
-    <h3 class="boardhead" id="outhead">Outside contributors</h3>
-    <ol class="board" id="boardlist" role="list" aria-labelledby="outhead"></ol>
-    <h3 class="boardhead" id="mainhead" hidden>Maintainers, keeping their own projects accessible</h3>
-    <ol class="board" id="maintlist" role="list" aria-labelledby="mainhead" hidden></ol>
+    <ol class="board" id="boardlist" role="list" aria-label="Top outside contributors"></ol>
     <p class="sub small">Merged pull requests carrying an accessibility label, from the
     GitHub API. People who own or belong to the repo are dropped, each owner counts at
-    most three times, and repos under a year old are left out. Without those rules the top
-    of this board was one account's two repos, both under three months old.
+    most three times, and repos under a year old are left out. Maintainers keeping their
+    own projects accessible have their own section on the
     <a href="https://github.com/LauraMoney42/AccessibilityRocks/blob/main/CONTRIBUTORS.md"
-       target="_blank" rel="noopener">See everyone on the contributors wall</a>.</p>
+       target="_blank" rel="noopener">contributors wall</a>, along with everyone else.</p>
 
     <div class="actions">
       <button class="primary" id="post">Make a Post</button>
@@ -304,17 +300,14 @@ ${site}`;
 function renderBoard() {
   const f = DATA.fixers;
   if (!f || !f.people || !f.people.length) { $("board").hidden = true; return; }
+  const outsideCount = f.people.filter(p => p.role !== "maintainer").length;
   $("boardsub").textContent =
-    `${f.total} accessibility fixes merged since ${f.since} by ${f.people.length} people.`;
-  // Two groups rather than one ranking. Fixing a project you do not maintain is
-  // the behaviour this board exists to encourage, so it leads. Maintainers doing
-  // accessibility work on their own project are still doing real work, so they
-  // are listed rather than filtered out, just not competing for the same slots.
+    `${outsideCount} people fixing accessibility in projects they do not maintain, ` +
+    `since ${f.since}.`;
+  // This page shows only people fixing projects they do not maintain, which is
+  // the behaviour it exists to grow. Maintainers keeping their own projects
+  // accessible are on the contributors wall, with their own section.
   const outside = f.people.filter(p => p.role !== "maintainer");
-  const maint = f.people.filter(p => p.role === "maintainer");
-
-  $("maintlist").hidden = $("mainhead").hidden = maint.length === 0;
-  $("maintlist").innerHTML = maint.slice(0, 5).map((p, n) => entry(p, n)).join("");
   $("boardlist").innerHTML = outside.slice(0, 10).map((p, n) => entry(p, n)).join("");
 }
 
