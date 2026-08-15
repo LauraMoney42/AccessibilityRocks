@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-14 22:06
+- Moved the search and filter bar below the scoreboard, so the page opens with who has
+  been fixing things and the controls sit directly above the list they control
+- Bar stays sticky from its new position, filters and the skip link still work
+- Files affected: `docs/index.html`
+
 ## 2026-08-14 22:02
 - Dashboard board now shows outside contributors only. Maintainers moved entirely to the
   contributors wall, which already had its own section for them, and the board note links

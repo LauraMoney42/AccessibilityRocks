@@ -124,22 +124,6 @@
 </header>
 
 <main class="wrap">
-  <div class="bar" role="search">
-    <input type="search" id="q" placeholder="Search title, repo, or label" aria-label="Search issues">
-    <select id="area" aria-label="Filter by specialty"><option value="">All specialties</option></select>
-    <select id="lang" aria-label="Filter by language"><option value="">Any language</option></select>
-    <select id="sort" aria-label="Sort issues">
-      <option value="stars">Most stars</option>
-      <option value="idle">Longest untouched</option>
-      <option value="old">Oldest first</option>
-      <option value="new">Newest first</option>
-      <option value="comments">Most discussed</option>
-    </select>
-    <label class="check"><input type="checkbox" id="gfi"> Good first issue</label>
-    <label class="check"><input type="checkbox" id="unlab"> Unlabeled only</label>
-    <label class="check"><input type="checkbox" id="big"> Include big tech</label>
-  </div>
-
   <div class="panel" id="board">
     <h2>Who has been fixing these</h2>
     <p class="sub" id="boardsub"></p>
@@ -162,6 +146,22 @@
     </div>
     <p class="sub" id="vstatus" role="status" aria-live="polite"></p>
     <textarea id="posttext" hidden readonly aria-label="Your draft LinkedIn post"></textarea>
+  </div>
+
+  <div class="bar" role="search">
+    <input type="search" id="q" placeholder="Search title, repo, or label" aria-label="Search issues">
+    <select id="area" aria-label="Filter by specialty"><option value="">All specialties</option></select>
+    <select id="lang" aria-label="Filter by language"><option value="">Any language</option></select>
+    <select id="sort" aria-label="Sort issues">
+      <option value="stars">Most stars</option>
+      <option value="idle">Longest untouched</option>
+      <option value="old">Oldest first</option>
+      <option value="new">Newest first</option>
+      <option value="comments">Most discussed</option>
+    </select>
+    <label class="check"><input type="checkbox" id="gfi"> Good first issue</label>
+    <label class="check"><input type="checkbox" id="unlab"> Unlabeled only</label>
+    <label class="check"><input type="checkbox" id="big"> Include big tech</label>
   </div>
 
   <p class="counts" id="counts" role="status" aria-live="polite"></p>
