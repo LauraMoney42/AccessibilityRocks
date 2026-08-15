@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-08-14 23:15
+Fixed everything a full accuracy and accessibility audit turned up. The two that would
+actually have blocked someone:
+
+- **At 400% zoom the sticky filter bar was 313px tall in a 256px viewport**, so it pinned
+  and covered the entire results list, and the "Include big tech" checkbox was unreachable
+  by mouse, touch and keyboard. The bar is now static below 700px wide or 600px tall.
+- **Horizontal page scroll at 320px** (scrollWidth 350 vs viewport 320), because
+  `auto-fill` cannot shrink below its `minmax` minimum. Both grids now wrap that minimum
+  in `min()`. Verified: 0px overflow at 320px.
+
+Keyboard and screen reader:
+- "Show more" threw focus into card 31 instead of card 101: the selector matched 972
+  non-focusable spans. Now targets card title links.
+- Removed the duplicate "Open this issue" link from every card. That halved the tab sweep
+  and removed 100 identically named links from the screen reader links list.
+- Added "(opens in a new tab)" as visually hidden text on card links, a "Skip past the
+  issue list" link, a hidden "Matching issues" heading, and a spoken unit on star counts
+- Debounced the search box by 400ms: typing "screen reader" fired 13 live-region
+  announcements, now one
+- Filter bar was `role="search"` while holding sort and three filters, now a labelled group
+
+Accuracy:
+- The header count ignored the activity filter, so it disagreed with the list on six days
+  out of seven. Both now use the same predicate.
+- "32 people" sat above a list of five, with no indication it was a top five. The list now
+  says "Top 5 of 32".
+- The scoreboard printed owner counts labelled "projects"
+- `fixers.total` was summed before the list was truncated, so CONTRIBUTORS.md claimed 85
+  fixes by 40 people while those 40 summed to 74
+- Added owners the big-company list missed: adobecom, automattic, wordpress,
+  wordpress-mobile, ubuntu, alphagov. Their repos were being offered to volunteers as
+  independent projects.
+- The LinkedIn status claimed success before the clipboard write was awaited, and a
+  blocked popup was indistinguishable from a working one
+- "quiet for N days" ran exactly one day high, and the final "Show more" click computed
+  "Show -88 more"
+
+Sizing: every font-size converted to rem so browser font preferences are honoured, the
+11px scoreboard stat raised to 12px, and filter checkbox targets raised to 24px.
+
+Files affected: `docs/index.html`, `track_a11y.py`, `docs/data.json`, `CONTRIBUTORS.md`
+
 ## 2026-08-14 22:50
 - Restyled off blue and yellow onto a magenta-plum palette. All 24 contrast pairs
   measured, not eyeballed: lowest text pair is 4.84:1, control borders 4.76:1 light and

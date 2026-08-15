@@ -2,7 +2,7 @@
 
 People who merged accessibility fixes into open source projects in the last 90 days, counted from 2026-05-17.
 
-**85 fixes** by **40 people**. Regenerated every Monday from the GitHub API, so this list keeps moving.
+**74 fixes** by **40 people**. Regenerated every Monday from the GitHub API, so this list keeps moving.
 
 ## Outside contributors
 

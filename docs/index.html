@@ -33,10 +33,18 @@
   [hidden] { display: none !important; }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 0.9375rem/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  /* Visually hidden but still spoken. Not display:none, which would drop it from
+     the accessibility tree along with the screen. Both the classic 1px clip and
+     clip-path are set so older engines and current ones agree. */
+  .vh {
+    position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%);
+    white-space: nowrap; border: 0;
   }
   header { padding: 28px 20px 6px; max-width: 1180px; margin: 0 auto; }
-  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  h1 { font-size: 1.625rem; margin: 0 0 6px; letter-spacing: -0.02em; }
   .sub { color: var(--muted); margin: 0 0 4px; max-width: 62ch; }
   .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 60px; }
 
@@ -44,6 +52,12 @@
     position: sticky; top: 0; z-index: 5; background: var(--bg);
     padding: 14px 0; border-bottom: 1px solid var(--line);
     display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+  /* At 400% zoom the bar wraps to seven rows and is taller than the viewport, so
+     sticking it pins it over the entire results list and puts the last checkbox
+     off screen with no way to scroll to it. Let it scroll away instead. */
+  @media (max-width: 700px), (max-height: 600px) {
+    .bar { position: static; }
   }
   input, select, button {
     font: inherit; color: var(--ink); background: var(--card);
@@ -61,75 +75,94 @@
     color: var(--ink); padding: 10px 14px; border-radius: 0 0 8px 0; z-index: 20;
   }
   .skip:focus { left: 0; }
+  /* The second skip link stands mid-page, so on focus it returns to the flow where
+     it sits instead of flying to the top corner next to the first one. */
+  .skip.here:focus {
+    position: static; display: inline-block; left: auto;
+    margin: 0 0 8px; border: 1px solid var(--control-line); border-radius: 8px;
+  }
   /* Sticky filter bar must not cover whatever the keyboard just moved to. */
   .card, .board li, h2 { scroll-margin-top: 120px; }
+  /* Where the bar is not sticky, nothing is pinned over the content, so stop
+     reserving room for it: at a 256px tall viewport that gap was half the screen. */
+  @media (max-width: 700px), (max-height: 600px) {
+    .card, .board li, h2 { scroll-margin-top: 8px; }
+  }
   input[type=search] { flex: 1 1 220px; min-width: 160px; }
   button { cursor: pointer; }
   button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
-  label.check { display: flex; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
+  /* min-height keeps the whole label a 24px target, which is the smallest size
+     WCAG 2.2 accepts. align-items keeps the box and text centred inside it. */
+  label.check {
+    display: flex; align-items: center; gap: 6px; color: var(--muted);
+    white-space: nowrap; min-height: 24px;
+  }
 
-  .counts { color: var(--muted); font-size: 13px; padding: 12px 0 4px; }
+  .counts { color: var(--muted); font-size: 0.8125rem; padding: 12px 0 4px; }
 
-  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+  /* min() lets auto-fill fall below its own minimum on a narrow viewport. Without
+     it the 330px track wins and the whole document scrolls sideways at 320px. */
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); }
   .card {
     background: var(--card); border: 1px solid var(--line); border-radius: 12px;
     padding: 14px; display: flex; flex-direction: column; gap: 8px;
   }
   .card h3 {
-    margin: 0; font-size: 15px; font-weight: 600; line-height: 1.35;
+    margin: 0; font-size: 0.9375rem; font-weight: 600; line-height: 1.35;
     /* Issue titles arrive from GitHub and some carry unbreakable tokens like
        `**cluster/Chooser**`, which pushed the whole page sideways at 770px. */
     overflow-wrap: anywhere;
   }
   .card h3 a { color: inherit; text-decoration: none; }
   .card h3 a:hover { text-decoration: underline; }
-  .repo { font-size: 13px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+  .repo { font-size: 0.8125rem; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
   .chips { display: flex; flex-wrap: wrap; gap: 5px; }
   .chip {
     background: var(--chip); color: var(--chip-ink); border-radius: 99px;
-    padding: 2px 9px; font-size: 12px; white-space: nowrap;
+    padding: 2px 9px; font-size: 0.75rem; white-space: nowrap;
   }
   .chip.good { background: var(--good); color: var(--good-ink); }
   .chip.warm { background: var(--warm); color: var(--warm-ink); }
-  .meta { font-size: 12px; color: var(--muted); margin-top: auto; }
+  .meta { font-size: 0.75rem; color: var(--muted); margin-top: auto; }
   .actions { display: flex; gap: 6px; flex-wrap: wrap; }
-  .actions button { font-size: 13px; padding: 6px 10px; }
+  .actions button { font-size: 0.8125rem; padding: 6px 10px; }
 
   .panel {
     background: var(--card); border: 1px solid var(--line); border-radius: 12px;
     padding: 16px; margin: 16px 0 20px;
   }
-  .panel h2 { margin: 0 0 4px; font-size: 17px; }
+  .panel h2 { margin: 0 0 4px; font-size: 1.0625rem; }
+  .panel h3 { margin: 12px 0 0; font-size: 0.9375rem; }
   textarea {
     width: 100%; min-height: 150px; margin-top: 10px; border-radius: 8px;
     border: 1px solid var(--control-line); background: var(--bg); color: var(--ink);
-    padding: 10px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 10px; font: 0.8125rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   }
-  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 14px; }
-  .small { font-size: 12px; }
-  /* Top ten, packed tight. No horizontal scroller: it would have needed its own
-     focusable region and a name to stay keyboard-usable, and ten rows fit fine. */
+  footer { color: var(--muted); font-size: 0.8125rem; border-top: 1px solid var(--line); padding-top: 14px; }
+  .small { font-size: 0.75rem; }
+  /* Top five, packed tight. No horizontal scroller: it would have needed its own
+     focusable region and a name to stay keyboard-usable, and five rows fit fine. */
   .board {
     list-style: none; margin: 10px 0 4px; padding: 0; display: grid; gap: 4px;
-    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr));
   }
   .board li {
     display: flex; align-items: center; gap: 7px; padding: 4px 6px;
-    border: 1px solid var(--line); border-radius: 8px; font-size: 13px;
+    border: 1px solid var(--line); border-radius: 8px; font-size: 0.8125rem;
   }
   .board img { width: 22px; height: 22px; border-radius: 50%; background: var(--chip); flex: 0 0 auto; }
-  .board .rank { color: var(--muted); font-size: 11px; width: 15px; text-align: right; flex: 0 0 auto; }
+  .board .rank { color: var(--muted); font-size: 0.75rem; width: 18px; text-align: right; flex: 0 0 auto; }
   .board .stack { min-width: 0; }
   .board .who { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .board .who { font-weight: 600; text-decoration: none; color: inherit; }
   .board .who:hover { text-decoration: underline; }
-  .board .stat { color: var(--muted); font-size: 11px; }
+  .board .stat { color: var(--muted); font-size: 0.75rem; }
   /* The ranking explanation is long but rarely needed, so it collapses. A native
      <details> keeps it reachable by keyboard and touch, which a :hover tooltip or a
      title attribute would not. */
   .why { margin: 2px 0 10px; }
   .why summary {
-    color: var(--muted); font-size: 12px; cursor: pointer;
+    color: var(--muted); font-size: 0.75rem; cursor: pointer;
     display: list-item; width: fit-content;
   }
   /* Same ring as the global rule, restated so the marker box is included. */
@@ -157,6 +190,7 @@
   <div class="panel" id="board">
     <h2>Scoreboard</h2>
     <p class="sub" id="boardsub"></p>
+    <h3 id="boardtop"></h3>
     <ol class="board" id="boardlist" role="list" aria-label="Top outside contributors"></ol>
     <details class="why">
       <summary>How this is ranked</summary>
@@ -181,7 +215,7 @@
     <textarea id="posttext" hidden readonly aria-label="Your draft LinkedIn post"></textarea>
   </div>
 
-  <div class="bar" role="search">
+  <div class="bar" role="group" aria-label="Filters and sorting">
     <input type="search" id="q" placeholder="Search title, repo, or label" aria-label="Search issues">
     <select id="area" aria-label="Filter by specialty"><option value="">All specialties</option></select>
     <select id="lang" aria-label="Filter by language"><option value="">Any language</option></select>
@@ -203,8 +237,11 @@
     <label class="check"><input type="checkbox" id="big"> Include big tech</label>
   </div>
 
+  <h2 class="vh">Matching issues</h2>
   <p class="counts" id="counts" role="status" aria-live="polite"></p>
+  <a class="skip here" href="#pastresults">Skip past the issue list</a>
   <div class="grid" id="results" tabindex="-1"></div>
+  <div id="pastresults" tabindex="-1"></div>
   <div class="actions" id="morewrap" hidden>
     <button id="more"></button>
   </div>
@@ -220,11 +257,12 @@
 
 <script>
 let DATA = { issues: [], areas: [], generated: "" };
-const PAGE = 100;      // tab stops, not bytes: 300 cards is ~900 stops to pass through
+const PAGE = 100;      // tab stops, not bytes: one link per card, so 300 cards is 300 stops
 let shown = PAGE;
 
 const $ = id => document.getElementById(id);
-const days = iso => Math.round((Date.now() - new Date(iso + "T00:00:00Z")) / 86400000);
+// floor, not round: at 12 hours elapsed, rounding claims a full day has passed.
+const days = iso => Math.floor((Date.now() - new Date(iso + "T00:00:00Z")) / 86400000);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 
@@ -236,19 +274,23 @@ function load() {
 }
 
 function init() {
-  $("stamp").textContent = "Last refreshed " + DATA.generated + " · " +
-    DATA.issues.filter(i => !i.big).length + " open issues across " +
-    new Set(DATA.issues.filter(i => !i.big).map(i => i.repo)).size + " projects";
-
   const areas = [...new Set(DATA.issues.flatMap(i => i.areas))].sort();
   for (const a of areas) $("area").add(new Option(a, a));
 
   const langs = [...new Set(DATA.issues.map(i => i.language))].filter(l => l && l !== "-").sort();
   for (const l of langs) $("lang").add(new Option(l, l));
 
-  for (const el of ["q", "area", "lang", "sort", "active", "gfi", "unlab", "big"]) {
+  // Selects and checkboxes are one deliberate action each, so they render at once.
+  for (const el of ["area", "lang", "sort", "active", "gfi", "unlab", "big"]) {
     $(el).addEventListener("input", () => { shown = PAGE; render(); });
   }
+  // Typing is not. Without the wait, the counts live region interrupts the screen
+  // reader on every keystroke: "screen reader" fired thirteen announcements.
+  let typing;
+  $("q").addEventListener("input", () => {
+    clearTimeout(typing);
+    typing = setTimeout(() => { shown = PAGE; render(); }, 400);
+  });
   $("post").addEventListener("click", () => {
     $("postbox").hidden = false;
     $("ghuser").focus();
@@ -261,7 +303,9 @@ function init() {
     shown += PAGE;
     render();
     // Land the keyboard on the first newly revealed card, not back at the top.
-    document.querySelectorAll(".card .chip")[first]?.focus();
+    // Title links only: ".card .chip" also matched the specialty spans, which are
+    // not focusable and outnumber the cards roughly ten to one.
+    document.querySelectorAll(".card h3 a")[first]?.focus();
   });
   renderBoard();
   render();
@@ -329,12 +373,36 @@ ${site}`;
   box.hidden = false;
   box.focus();
   box.select();
-  $("vstatus").textContent =
-    `${count} merged fix${one ? "" : "es"} found. Post copied, opening LinkedIn: paste it there.`;
-  try { await navigator.clipboard.writeText(text); } catch (e) { /* select() is the fallback */ }
+
+  // Report what actually happened, so say it after the write settles. The text is
+  // selected in the box either way, which is the fallback when the copy fails.
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    copied = true;
+  } catch (e) {
+    copied = false;
+  }
+  const found = `${count} merged fix${one ? "" : "es"} found.`;
+  const copyLine = copied
+    ? "Post copied."
+    : "Could not copy it for you: the post is selected below, so copy it yourself.";
+  $("vstatus").textContent = `${found} ${copyLine} Opening LinkedIn: paste it there.`;
+
   // LinkedIn strips prefilled text from share URLs, so the composer opens empty.
-  setTimeout(() => window.open("https://www.linkedin.com/feed/?shareActive=true",
-                               "_blank", "noopener"), 400);
+  setTimeout(() => {
+    // No "noopener" in the feature string: with it, window.open always returns
+    // null and a blocked popup is indistinguishable from a successful one. The
+    // opener is cleared straight after instead, which is the same protection.
+    const win = window.open("https://www.linkedin.com/feed/?shareActive=true", "_blank");
+    if (win) {
+      win.opener = null;
+    } else {
+      $("vstatus").textContent =
+        `${found} ${copyLine} Your browser blocked the LinkedIn tab, so open ` +
+        `linkedin.com yourself and paste the post there.`;
+    }
+  }, 400);
 }
 
 function renderBoard() {
@@ -348,7 +416,11 @@ function renderBoard() {
   // the behaviour it exists to grow. Maintainers keeping their own projects
   // accessible are on the contributors wall, with their own section.
   const outside = f.people.filter(p => p.role !== "maintainer");
-  $("boardlist").innerHTML = outside.slice(0, 5).map((p, n) => entry(p, n)).join("");
+  const top = outside.slice(0, 5);
+  // The subtitle counts everybody; this says how many of them are on screen, so
+  // nobody reads the population figure as the length of the list below it.
+  $("boardtop").textContent = `Top ${top.length} of ${outsideCount}`;
+  $("boardlist").innerHTML = top.map((p, n) => entry(p, n)).join("");
 }
 
 function entry(p, n) {
@@ -357,7 +429,7 @@ function entry(p, n) {
     <img src="${esc(p.avatar)}&s=44" alt="" loading="lazy">
     <span class="stack">
       <a class="who" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.login)}</a>
-      <span class="stat">${p.count} fix${p.count === 1 ? "" : "es"} · ${p.orgs} project${p.orgs === 1 ? "" : "s"}</span>
+      <span class="stat">${p.count} fix${p.count === 1 ? "" : "es"} · ${p.projects} project${p.projects === 1 ? "" : "s"}</span>
     </span>
   </li>`;
 }
@@ -391,6 +463,13 @@ const SORTS = {
 
 function render() {
   const list = DATA.issues.filter(matches).sort(SORTS[$("sort").value]);
+  // Same predicate as the results, so the header and the list can never disagree.
+  // It used to count every non-big issue while the list also applied the activity
+  // filter, which put the two numbers apart on most days.
+  const repos = new Set(list.map(i => i.repo)).size;
+  $("stamp").textContent = "Last refreshed " + DATA.generated + " · " +
+    `${list.length} open issue${list.length === 1 ? "" : "s"} across ` +
+    `${repos} project${repos === 1 ? "" : "s"} matching the filters below`;
   $("counts").textContent = `${list.length} issue${list.length === 1 ? "" : "s"}` +
     ` · ${list.filter(i => i.gfi).length} tagged good first issue` +
     (list.length > shown ? ` · showing the first ${shown}` : "");
@@ -399,17 +478,18 @@ function render() {
   $("results").innerHTML = list.slice(0, shown).map(card).join("");
   const left = list.length - shown;
   $("morewrap").hidden = left <= 0;
-  $("more").textContent = `Show ${Math.min(left, PAGE)} more of ${list.length}`;
+  // Clamp: on the last click `left` goes negative and the button read "Show -88 more".
+  $("more").textContent = `Show ${Math.max(0, Math.min(left, PAGE))} more of ${list.length}`;
 }
 
 function card(i) {
   return `<article class="card">
     <div class="repo">
       <strong>${esc(i.repo)}</strong>
-      <span>★ ${i.stars.toLocaleString()}</span>
+      <span role="img" aria-label="${i.stars.toLocaleString()} stars"><span aria-hidden="true">★</span> ${i.stars.toLocaleString()}</span>
       ${i.language && i.language !== "-" ? `<span>${esc(i.language)}</span>` : ""}
     </div>
-    <h3><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a></h3>
+    <h3><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}<span class="vh"> (opens in a new tab)</span></a></h3>
     <div class="chips">
       ${i.areas.map(a => `<span class="chip">${esc(a)}</span>`).join("")}
       ${i.gfi ? `<span class="chip good">good first issue</span>` : ""}
@@ -417,9 +497,6 @@ function card(i) {
       ${i.botBumped ? `<span class="chip warm">dates are last human comment</span>` : ""}
     </div>
     <div class="meta">opened ${esc(i.created)} · quiet for ${days(i.updated)} days · ${i.comments} comments</div>
-    <div class="actions">
-      <a class="chip" href="${esc(i.url)}" target="_blank" rel="noopener">Open this issue</a>
-    </div>
   </article>`;
 }
 

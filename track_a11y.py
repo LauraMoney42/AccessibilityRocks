@@ -63,7 +63,8 @@ BIG_TECH_OWNERS = {
     # Apple, Amazon
     "apple", "swiftlang", "aws", "awslabs", "amzn", "aws-samples", "amazon-archives",
     # Other large tech
-    "netflix", "adobe", "oracle", "mysql", "ibm", "redhat", "openshift", "salesforce",
+    "netflix", "adobe", "adobecom", "automattic", "wordpress", "wordpress-mobile",
+    "ubuntu", "alphagov", "oracle", "mysql", "ibm", "redhat", "openshift", "salesforce",
     "sap", "intel", "nvidia", "uber", "uber-go", "airbnb", "shopify", "stripe",
     "twitter", "x", "linkedin", "atlassian", "cloudflare", "elastic", "mongodb",
     "docker", "jetbrains", "kotlin", "spotify", "bytedance", "alibaba", "tencent",
@@ -700,6 +701,7 @@ def search_fixers(labels, since_days=90, limit=300, min_age_days=365, min_stars=
         })
 
     people.sort(key=lambda x: (-x["score"], -x["orgs"], -x["count"], x["login"].lower()))
+    listed = people[:40]
     top_projects = sorted(projects.items(), key=lambda kv: -kv[1])[:12]
     return {
         "window_days": since_days,
@@ -707,9 +709,11 @@ def search_fixers(labels, since_days=90, limit=300, min_age_days=365, min_stars=
         "min_age_days": min_age_days if filters_applied else 0,
         "min_stars": min_stars if filters_applied else 0,
         "cap": cap,
-        "people": people[:40],
+        "people": listed,
         "projects": [{"repo": r, "count": c} for r, c in top_projects],
-        "total": sum(p["count"] for p in people),
+        # Summed over the people actually listed. Summing over everyone made the
+        # wall claim 85 fixes by 40 people while those 40 summed to 74.
+        "total": sum(p["count"] for p in listed),
     }
 
 
