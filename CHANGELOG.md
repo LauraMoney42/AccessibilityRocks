@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-14 22:50
+- Restyled off blue and yellow onto a magenta-plum palette. All 24 contrast pairs
+  measured, not eyeballed: lowest text pair is 4.84:1, control borders 4.76:1 light and
+  5.50:1 dark, both themes pass.
+- Tag colours now sit on a lightness staircase rather than differing only in hue. At equal
+  lightness the neutral and positive tags measured a colour difference of 0.2 under
+  simulated deuteranopia, which is invisible; every tag pair now stays above 10 under
+  protanopia, deuteranopia and tritanopia.
+- Accent moved out of the status hue family on purpose. A clay accent tested at a colour
+  difference of 6 from the warning tag under protanopia, which would have put interactive
+  and status colours on the same visual channel.
+- Dark theme still avoids white on black: text at L* 92 on a background at L* 4 is 15.7:1
+  rather than 21:1, since maximum contrast smears at glyph edges for astigmatism
+- Files affected: `docs/index.html`, `README.md`
+
 ## 2026-08-14 22:30
 - Renamed the panel to **Scoreboard** and cut it to the top five
 - Collapsed the ranking explanation into a native `details` disclosure labelled "How this

@@ -61,7 +61,9 @@ It would be a bad look otherwise. What was checked and fixed:
 | Skip link | Skips the filter bar straight to the results, which take focus |
 | Keyboard | Every control reachable, all named, focus ring 3px at 5.6:1 (light) and 7.3:1 (dark) |
 | Live regions | Result counts and list changes announce instead of changing silently |
-| Contrast | All text at least 4.5:1 in both themes; control borders raised to 4.4:1 for WCAG 1.4.11 |
+| Contrast | All text at least 4.5:1 in both themes, control borders at least 4.7:1 for WCAG 1.4.11. Lowest text pair on the page is 4.84:1 |
+| Colour blindness | The three tag colours sit on a deliberate lightness staircase, not just different hues. At equal lightness the neutral and positive tags measured a colour difference of 0.2 under simulated deuteranopia, which is invisible |
+| Dark theme | Not white on black. Text sits at L\* 92 on a background at L\* 4, so 15.7:1 rather than the 21:1 of pure white on pure black, because maximum contrast smears at glyph edges for people with astigmatism |
 | List semantics | `role="list"` where `list-style: none` would otherwise strip it in VoiceOver |
 | Volume | Results page at 100, cutting roughly 900 tab stops to about 300 |
 | Scoreboard | Top five in a plain grid, with the ranking rules behind a native `details` disclosure rather than a hover tooltip, since hover is unreachable by keyboard and touch |

@@ -6,18 +6,26 @@
 <title>Accessibility issues that need help</title>
 <meta name="description" content="Open accessibility issues in independent open source projects, sorted by specialty.">
 <style>
+  /* "Orchid". Every pair below is measured, not eyeballed: all text clears 4.5:1
+     and control borders clear 3:1 in both themes. The three tag colours also sit
+     on a deliberate lightness staircase, because hue alone collapses under colour
+     blindness: at equal lightness, the neutral and positive tags came out at a
+     colour difference of 0.2 under deuteranopia, which is invisible. */
   :root {
-    --bg: #fbfbfd; --card: #fff; --ink: #14161a; --muted: #5c6470;
-    --line: #e3e6ec; --control-line: #6e7683; --accent: #1f5fd0; --accent-ink: #fff;
-    --chip: #eef2fb; --chip-ink: #26467f; --warm: #fff6e0; --warm-ink: #7a5300;
-    --good: #e6f4ea; --good-ink: #146b34;
+    --bg: #fbfafc; --card: #ffffff; --ink: #17151c; --muted: #5a5568;
+    --line: #e6e3ec; --control-line: #726d84; --accent: #a21caf; --accent-ink: #ffffff;
+    --chip: #ffedff; --chip-ink: #93548c; --warm: #dbb67e; --warm-ink: #5d3000;
+    --good: #b5e1c5; --good-ink: #246248;
   }
   @media (prefers-color-scheme: dark) {
+    /* Not white on black. The ink sits at L* 92 on a background at L* 4, which is
+       15.7:1 rather than the 21:1 of pure white on pure black. That is deliberate:
+       maximum contrast smears at the glyph edges for people with astigmatism. */
     :root {
-      --bg: #0f1115; --card: #171a21; --ink: #eef0f4; --muted: #98a1b0;
-      --line: #262b35; --control-line: #8791a1; --accent: #6ea0ff; --accent-ink: #0f1115;
-      --chip: #1d2532; --chip-ink: #9dbcff; --warm: #2c2410; --warm-ink: #f0c765;
-      --good: #122c1c; --good-ink: #7fd39b;
+      --bg: #0f0e14; --card: #191822; --ink: #e9e7f0; --muted: #9c98ac;
+      --line: #262533; --control-line: #8b86a0; --accent: #e879f9; --accent-ink: #1b0a1f;
+      --chip: #2d1c2b; --chip-ink: #d9a2d1; --warm: #5e4823; --warm-ink: #fad7b6;
+      --good: #203a2a; --good-ink: #79b89b;
     }
   }
   * { box-sizing: border-box; }
