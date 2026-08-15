@@ -18,7 +18,7 @@ supported and adds private repos, but it is never required.
 
 | Sheet | Contents |
 | --- | --- |
-| **All public repos** | Open accessibility issues across GitHub, most-starred repos first. Includes a "good first issue" column, so contribution targets are one filter away. |
+| **All public repos** | Open accessibility issues in independent open source projects, most-starred first. Big-company repos are filtered out, and there is a "good first issue" column. |
 | **My repos** | Accessibility issues in your own repos, open and closed. Open items sort first, amber for open, green for closed. |
 | **My repo rollup** | Every repo you own with its open and closed counts, so the quiet ones are visible too. |
 | **Run info** | When it ran, what was searched, and what the numbers do and do not cover. |
@@ -69,17 +69,38 @@ On Linux, add this to `crontab -e` instead (last field is the day, 0 for Sunday)
 --owner NAME[,NAME]   user or org to scan (several are merged into one workbook)
 --global-limit N      how many public issues to pull, max 1000, default 300
 --no-global           skip the public sheet, only scan your repos
+--per-repo N          max issues per repo on the public sheet, default 3, 0 for no cap
+--include-big-tech    put Microsoft, Google, Meta and friends back in
+--exclude-owners a,b  leave out more owners
+--any-license         include repos with no recognizable open source license
+--min-stars N         ignore public repos below this star count
 --labels A,B,C        label spellings to match
 --out PATH            where to write the .xlsx
 ```
+
+## Who gets filtered out
+
+The public sheet is for projects that actually need volunteer help, so by default it
+drops:
+
+- **Big-company owners.** About 110 of them: Microsoft, Google, Meta, Apple, Amazon,
+  Adobe, Oracle, and so on. They have paid accessibility teams. The list lives at the top
+  of `track_a11y.py` under `BIG_TECH_OWNERS`, and it is meant to be edited.
+- **Repos with no recognizable open source license.** Source-available and unlicensed
+  code is not the same as open source. Pass `--any-license` to keep them.
+- **Archived repos and forks.** Nothing to contribute to.
+- **Extra issues from a repo already listed.** Three per repo by default, so one busy
+  backlog cannot fill the sheet. A 300-row pull typically covers around 200 projects.
+
+Run info records how many rows each rule removed.
 
 ## Signing in (optional)
 
 Anonymous mode has exactly two limits:
 
 - private repos are invisible
-- star counts are looked up for the top 40 repos only, because the anonymous rate limit
-  is 60 requests an hour
+- star counts are looked up for the top 25 repos only, because the anonymous rate limit
+  is 60 requests an hour. Missing counts leave the cell blank rather than failing the run.
 
 If either matters, run `gh auth login --web` (it opens github.com with a one-time code,
 nothing to copy by hand) or export a `GH_TOKEN`. The script finds a token on its own and

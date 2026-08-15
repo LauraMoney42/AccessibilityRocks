@@ -56,6 +56,25 @@ the top 40 only, leaving the rest blank and sorted last. The cap exists because 
 public repos. Repo listing prefers `/user/repos?affiliation=owner` when the token owns
 the account (so private repos appear), otherwise `/users/{o}/repos` then `/orgs/{o}/repos`.
 
+## What the public sheet excludes, and why
+
+The point of that sheet is finding projects that need volunteer help, so four rules run
+by default:
+
+| Rule | Reason |
+| --- | --- |
+| ~110 big-company owners dropped | They have paid accessibility teams and the budget to fix their own bugs |
+| Recognized open source license required | Source-available is not open source; `NOASSERTION` means GitHub could not identify it |
+| No archived repos, no forks | Nothing to contribute to |
+| At most 3 issues per repo | One busy backlog would otherwise fill the sheet; a 300-row pull covers ~200 projects |
+
+`BIG_TECH_OWNERS` sits at the top of the file as an editable set, with `--include-big-tech`
+and `--exclude-owners` as the escape hatches. Run info reports how many rows each rule
+removed, so the filtering is visible rather than silent.
+
+Filtered rows are replaced rather than subtracted: the pull keeps going until it has the
+requested count of keepers.
+
 ## Design decisions worth remembering
 
 - **Comma-separated labels are OR in GitHub search.** `label:accessibility,a11y,"a b"`
@@ -70,10 +89,18 @@ the account (so private repos appear), otherwise `/users/{o}/repos` then `/orgs/
   asks a question. Auth is resolved silently or skipped.
 - **403 means rate limit here, not forbidden.** Search answers a burst with 403, so
   `request()` retries with backoff before giving up, and the error names the fix.
+- **Star lookups fail soft.** They are the one call that is nice-to-have, so they pass
+  `soft=True`: a rate limit blanks the cell and sets a global flag to stop trying, rather
+  than throwing away a spreadsheet that is otherwise complete. Found by exhausting the
+  anonymous 60/hour budget during testing, which killed an entire run.
 
 ## Verified behavior
 
-- Signed in: 42 repos including private, 200 public issues, about 14 seconds
-- Anonymous (gh off PATH): 29 public repos, 100 public issues, stars for 40 repos, 8 seconds
-- Top of the public sheet: `microsoft/vscode` at 188,689 stars
+- Signed in: 42 repos including private, 300 public issues across 196 distinct projects,
+  45 of them tagged good first issue, about 18 seconds
+- Anonymous (gh off PATH): 29 public repos, public sheet complete with stars
+- Anonymous with the core budget already exhausted: run completes, stars blank, note in
+  Run info
+- Top of the public sheet after filtering: electron, mui, storybook, svelte, mastodon,
+  leaflet, NewPipe. Before filtering it was microsoft/vscode and react-native.
 - Weekly launchd run: exit 0

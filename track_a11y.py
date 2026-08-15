@@ -42,7 +42,41 @@ DEFAULT_OUT = os.path.join(SCRIPT_DIR, "accessibility-issues.xlsx")
 
 # Without a token the core API allows 60 requests an hour, so the number of
 # repos we look up stars for has to stay small.
-ANON_STAR_LOOKUPS = 40
+ANON_STAR_LOOKUPS = 25
+
+# Owners skipped by default on the public sheet. These are companies with paid
+# accessibility teams and the budget to fix their own issues; volunteer effort is
+# better spent on independent projects. Edit this list freely, or pass
+# --include-big-tech to switch the filter off entirely.
+BIG_TECH_OWNERS = {
+    # Microsoft
+    "microsoft", "github", "azure", "dotnet", "azure-samples", "microsoftdocs",
+    "typescript", "playwright-community", "visualstudio", "cli",
+    # Google
+    "google", "googleapis", "googlechrome", "googlecloudplatform", "google-research",
+    "angular", "tensorflow", "flutter", "firebase", "chromium", "grpc", "dart-lang",
+    "golang", "bazelbuild", "material-components",
+    # Meta
+    "facebook", "facebookresearch", "facebookincubator", "meta-llama", "reactjs",
+    "pytorch", "react-native-community", "react", "reactwg",
+    # Apple, Amazon
+    "apple", "swiftlang", "aws", "awslabs", "amzn", "aws-samples", "amazon-archives",
+    # Other large tech
+    "netflix", "adobe", "oracle", "mysql", "ibm", "redhat", "openshift", "salesforce",
+    "sap", "intel", "nvidia", "uber", "uber-go", "airbnb", "shopify", "stripe",
+    "twitter", "x", "linkedin", "atlassian", "cloudflare", "elastic", "mongodb",
+    "docker", "jetbrains", "kotlin", "spotify", "bytedance", "alibaba", "tencent",
+    "baidu", "huawei", "samsung", "sony", "dell", "cisco", "vmware", "canonical",
+    "palantir", "snapchat", "paypal", "block", "square", "zoom", "slackapi",
+    "dropbox", "reddit", "discord", "epicgames", "unity-technologies", "roblox",
+    "twilio", "zendesk", "hashicorp", "datadog", "newrelic", "splunk", "grafana",
+    "confluentinc", "snowflakedb", "databricks", "openai", "anthropics", "vercel",
+    "supabase", "atlassian-labs", "expo", "sentry", "gitlab-org",
+}
+
+# GitHub reports a license for almost everything with a LICENSE file. NOASSERTION
+# means it found one it could not identify, which is not a promise of open source.
+UNCLEAR_LICENSES = {None, "", "NOASSERTION"}
 
 
 # --------------------------------------------------------------------------
@@ -70,7 +104,18 @@ TOKEN = None  # set in main()
 # HTTP
 # --------------------------------------------------------------------------
 
-def request(url, data=None, retries=3):
+RATE_LIMITED = False  # set once anonymous budget runs out, to stop retrying
+
+
+def request(url, data=None, retries=3, soft=False):
+    """soft=True means a rate limit returns None instead of ending the run.
+
+    Used for the optional star lookups: losing a popularity number is worth far
+    less than losing the whole spreadsheet.
+    """
+    global RATE_LIMITED
+    if soft and RATE_LIMITED:
+        return None
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "a11y-tracker",
@@ -85,6 +130,9 @@ def request(url, data=None, retries=3):
             with urllib.request.urlopen(req, timeout=60) as resp:
                 return json.loads(resp.read().decode())
         except urllib.error.HTTPError as err:
+            if err.code in (403, 429) and soft:
+                RATE_LIMITED = True
+                return None
             # Search is limited to 10 requests a minute without a token, and
             # GitHub answers a burst with 403 rather than a 429.
             if err.code in (403, 429) and attempt < retries - 1:
@@ -149,7 +197,11 @@ query($q: String!, $after: String) {
         number title url createdAt updatedAt state
         comments { totalCount }
         labels(first: 20) { nodes { name } }
-        repository { nameWithOwner stargazerCount primaryLanguage { name } }
+        repository {
+          nameWithOwner stargazerCount isArchived isFork
+          licenseInfo { spdxId name }
+          primaryLanguage { name }
+        }
       }
     }
   }
@@ -157,19 +209,46 @@ query($q: String!, $after: String) {
 """
 
 
-def search_global(labels, limit):
+def search_global(labels, limit, skip_owners, want_license, min_stars, per_repo):
     """Open accessibility issues across all public repos, with repo star counts.
 
-    With a token this is GraphQL, which returns stars inline: 100 issues per
-    call. Without one it falls back to REST plus a capped set of star lookups,
-    because the anonymous core limit is 60 requests an hour.
+    With a token this is GraphQL, which returns stars, license, and archived
+    status inline: 100 issues per call. Without one it falls back to REST plus a
+    capped set of star lookups, because the anonymous core limit is 60 an hour.
+
+    Filtered results are replaced by more results rather than leaving the sheet
+    short, so the pull continues until it has `limit` keepers or runs out.
     """
     base = f"{label_query(labels)} is:issue is:open is:public"
+    dropped = {"big tech": 0, "no clear license": 0, "archived or fork": 0,
+               "below star floor": 0, "extra issues from a repo already listed": 0}
+    per_repo_count = {}
+
+    def keep(repo_full, license_id, archived, fork, stars):
+        if repo_full.split("/")[0].lower() in skip_owners:
+            dropped["big tech"] += 1
+            return False
+        if archived or fork:
+            dropped["archived or fork"] += 1
+            return False
+        if want_license and license_id is not None and license_id in UNCLEAR_LICENSES:
+            dropped["no clear license"] += 1
+            return False
+        if stars is not None and stars < min_stars:
+            dropped["below star floor"] += 1
+            return False
+        # One busy repo can otherwise fill the whole sheet, which hides the point
+        # of the exercise: finding projects to help, not one project's backlog.
+        if per_repo and per_repo_count.get(repo_full, 0) >= per_repo:
+            dropped["extra issues from a repo already listed"] += 1
+            return False
+        per_repo_count[repo_full] = per_repo_count.get(repo_full, 0) + 1
+        return True
 
     if TOKEN:
         rows, cursor = [], None
-        # Most-commented first: a sample of 300 out of ~17k should favour issues
-        # people actually care about rather than whatever sorts first by default.
+        # Most-commented first: a sample out of ~17k should favour issues people
+        # actually care about rather than whatever sorts first by default.
         while len(rows) < limit:
             data = graphql(GRAPHQL_SEARCH, {"q": base + " sort:comments-desc", "after": cursor})
             if not data:
@@ -178,10 +257,17 @@ def search_global(labels, limit):
             for n in block["nodes"]:
                 if not n or not n.get("repository"):
                     continue
+                repo = n["repository"]
+                license_id = (repo.get("licenseInfo") or {}).get("spdxId")
+                if not keep(repo["nameWithOwner"], license_id,
+                            repo.get("isArchived"), repo.get("isFork"),
+                            repo["stargazerCount"]):
+                    continue
                 rows.append({
-                    "repo": n["repository"]["nameWithOwner"],
-                    "stars": n["repository"]["stargazerCount"],
-                    "language": (n["repository"].get("primaryLanguage") or {}).get("name") or "-",
+                    "repo": repo["nameWithOwner"],
+                    "stars": repo["stargazerCount"],
+                    "license": (repo.get("licenseInfo") or {}).get("spdxId") or "none",
+                    "language": (repo.get("primaryLanguage") or {}).get("name") or "-",
                     "number": n["number"],
                     "title": n["title"],
                     "url": n["url"],
@@ -196,19 +282,28 @@ def search_global(labels, limit):
         rows = rows[:limit]
         capped = False
     else:
-        raw = search_rest(base, limit, sort="comments")
-        rows = [{
-            "repo": "/".join(i["repository_url"].split("/")[-2:]),
-            "stars": None,
-            "language": "-",
-            "number": i["number"],
-            "title": i["title"],
-            "url": i["html_url"],
-            "labels": [l["name"] for l in i.get("labels", [])],
-            "comments": i.get("comments", 0),
-            "createdAt": i["created_at"],
-            "updatedAt": i["updated_at"],
-        } for i in raw]
+        # REST search carries no license or archived flag, so anonymous runs can
+        # only apply the owner filter. Pull extra to cover what gets dropped.
+        raw = search_rest(base, min(limit * 2, 1000), sort="comments")
+        rows = []
+        for i in raw:
+            full = "/".join(i["repository_url"].split("/")[-2:])
+            if not keep(full, None, False, False, None):
+                continue
+            rows.append({
+                "repo": full,
+                "stars": None,
+                "license": "?",
+                "language": "-",
+                "number": i["number"],
+                "title": i["title"],
+                "url": i["html_url"],
+                "labels": [l["name"] for l in i.get("labels", [])],
+                "comments": i.get("comments", 0),
+                "createdAt": i["created_at"],
+                "updatedAt": i["updated_at"],
+            })
+        rows = rows[:limit]
 
         # Star counts cost one call each, so only the repos with the most hits
         # get looked up. The rest sort to the bottom with a blank star cell.
@@ -218,15 +313,23 @@ def search_global(labels, limit):
         top = sorted(by_hits, key=lambda k: -by_hits[k])[:ANON_STAR_LOOKUPS]
         stars = {}
         with ThreadPoolExecutor(max_workers=4) as pool:
-            for repo, info in zip(top, pool.map(lambda r: request(f"{API}/repos/{r}"), top)):
+            lookup = lambda r: request(f"{API}/repos/{r}", soft=True)
+            for repo, info in zip(top, pool.map(lookup, top)):
                 if info:
                     stars[repo] = info.get("stargazers_count", 0)
         for r in rows:
             r["stars"] = stars.get(r["repo"])
-        capped = len(by_hits) > ANON_STAR_LOOKUPS
+            r["license"] = "?" if r["stars"] is None else r["license"]
+        if min_stars:
+            before = len(rows)
+            # Unknown star counts survive the floor: dropping them would hide
+            # projects purely because we ran out of anonymous API budget.
+            rows = [r for r in rows if r["stars"] is None or r["stars"] >= min_stars]
+            dropped["below star floor"] += before - len(rows)
+        capped = len(by_hits) > ANON_STAR_LOOKUPS or RATE_LIMITED
 
     rows.sort(key=lambda r: (-(r["stars"] if r["stars"] is not None else -1), -r["comments"]))
-    return rows, capped
+    return rows, capped, {k: v for k, v in dropped.items() if v}
 
 
 def search_owner_issues(owners, labels):
@@ -295,7 +398,8 @@ def parse_ts(value):
     return datetime.fromisoformat(value.replace("Z", "+00:00")) if value else None
 
 
-def build_workbook(global_rows, capped, mine, repos, owners, labels, out_path):
+def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
+                   filter_note, out_path):
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
@@ -328,8 +432,8 @@ def build_workbook(global_rows, capped, mine, repos, owners, labels, out_path):
     # --- Sheet 1: all public repos, most popular first ---------------------
     ws = wb.active
     ws.title = "All public repos"
-    ws.append(["Repo", "Stars", "Language", "#", "Title", "Labels", "Comments",
-               "Good first issue", "Created", "Updated", "Age (days)", "Link"])
+    ws.append(["Repo", "Stars", "License", "Language", "#", "Title", "Labels",
+               "Comments", "Good first issue", "Created", "Updated", "Age (days)", "Link"])
     for r in global_rows:
         created = parse_ts(r["createdAt"])
         gfi = any("good first issue" in l.lower() or "good-first-issue" in l.lower()
@@ -337,6 +441,7 @@ def build_workbook(global_rows, capped, mine, repos, owners, labels, out_path):
         ws.append([
             r["repo"],
             r["stars"] if r["stars"] is not None else "",
+            r.get("license", "?"),
             r["language"],
             r["number"],
             r["title"],
@@ -348,8 +453,8 @@ def build_workbook(global_rows, capped, mine, repos, owners, labels, out_path):
             (now - created).days if created else "",
             r["url"],
         ])
-        link_cell(ws, ws.max_row, 12, r["url"])
-    style(ws, [34, 8, 12, 7, 58, 30, 10, 16, 12, 12, 11, 8])
+        link_cell(ws, ws.max_row, 13, r["url"])
+    style(ws, [34, 8, 12, 12, 7, 56, 28, 10, 16, 12, 12, 11, 8])
 
     # --- Sheet 2: your own repos ------------------------------------------
     ws2 = wb.create_sheet("My repos")
@@ -412,13 +517,17 @@ def build_workbook(global_rows, capped, mine, repos, owners, labels, out_path):
         ("Signed in", "yes (private repos included)" if TOKEN else "no (public data only)"),
         ("Public issues listed", len(global_rows)),
         ("Public sample", "most-commented open accessibility issues, then sorted by stars"),
+        ("Public filter", filter_note),
         ("Popularity metric", "repo stars (GitHub does not expose download counts)"),
         ("Your repos scanned", len(repos)),
         ("Your issues found", f"{len(mine)} ({open_mine} open)"),
     ]
+    if dropped:
+        notes.append(("Excluded from public sheet",
+                      ", ".join(f"{v} {k}" for k, v in dropped.items())))
     if capped:
-        notes.append(("Note", f"star counts fetched for the top {ANON_STAR_LOOKUPS} repos "
-                              f"only; sign in to rank them all"))
+        notes.append(("Note", "some star counts are missing (anonymous rate limit); "
+                              "sign in for a complete ranking"))
     for k, v in notes:
         ws4.append([k, v])
     for cell in ws4["A"]:
@@ -446,6 +555,16 @@ def main():
                     help="how many public issues to pull (max 1000, default 300)")
     ap.add_argument("--no-global", action="store_true",
                     help="skip the all-public-repos sheet")
+    ap.add_argument("--include-big-tech", action="store_true",
+                    help="keep Microsoft, Google, Meta and friends in the public sheet")
+    ap.add_argument("--exclude-owners", default="",
+                    help="extra owners to leave out of the public sheet")
+    ap.add_argument("--any-license", action="store_true",
+                    help="include public repos with no recognizable open source license")
+    ap.add_argument("--min-stars", type=int, default=0,
+                    help="ignore public repos below this star count")
+    ap.add_argument("--per-repo", type=int, default=3,
+                    help="max issues shown per repo on the public sheet, 0 for no cap")
     args = ap.parse_args()
 
     try:
@@ -467,14 +586,32 @@ def main():
 
     print(f"Scanning {', '.join(owners)}" + ("" if TOKEN else " (not signed in, public data only)"))
 
-    global_rows, capped = ([], False)
+    skip_owners = set() if args.include_big_tech else set(BIG_TECH_OWNERS)
+    skip_owners |= {o.strip().lower() for o in args.exclude_owners.split(",") if o.strip()}
+
+    parts = []
+    if skip_owners:
+        parts.append(f"{len(skip_owners)} big-company owners excluded")
+    if not args.any_license:
+        parts.append("open source license required where known")
+    parts.append("no archived repos or forks")
+    if args.per_repo:
+        parts.append(f"at most {args.per_repo} issues per repo")
+    if args.min_stars:
+        parts.append(f"at least {args.min_stars} stars")
+    filter_note = "; ".join(parts) if parts else "none"
+
+    global_rows, capped, dropped = ([], False, {})
     if not args.no_global:
-        global_rows, capped = search_global(labels, min(args.global_limit, 1000))
-        print(f"  {len(global_rows)} open accessibility issues across public GitHub")
+        global_rows, capped, dropped = search_global(
+            labels, min(args.global_limit, 1000), skip_owners,
+            not args.any_license, args.min_stars, args.per_repo)
+        print(f"  {len(global_rows)} open accessibility issues in independent public repos")
 
     mine = search_owner_issues(owners, labels)
     repos = fetch_owner_repos(owners)
-    open_mine = build_workbook(global_rows, capped, mine, repos, owners, labels, out_path)
+    open_mine = build_workbook(global_rows, capped, dropped, mine, repos, owners,
+                               labels, filter_note, out_path)
 
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     print(f"[{stamp}] your repos: {len(mine)} items ({open_mine} open) across "
