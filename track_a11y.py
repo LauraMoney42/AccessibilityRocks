@@ -614,6 +614,47 @@ def parse_ts(value):
     return datetime.fromisoformat(value.replace("Z", "+00:00")) if value else None
 
 
+def write_json(global_rows, owners, out_path):
+    """Data file for the dashboard. Kept flat and small: it ships to a browser.
+
+    Public issues only. Your own repos are deliberately left out: this file is
+    meant to be published, and a private repo's issue titles must not ride along
+    with it.
+    """
+    def pack(r):
+        areas = r.get("areas") or [r.get("area", GENERAL)]
+        return {
+            "repo": r["repo"],
+            "number": r["number"],
+            "title": r["title"],
+            "url": r["url"],
+            "stars": r["stars"] or 0,
+            "language": r.get("language", "-"),
+            "license": r.get("license", "?"),
+            "areas": areas,
+            "labels": r["labels"][:8],
+            "comments": r["comments"],
+            "created": r["createdAt"][:10],
+            "updated": r["updatedAt"][:10],
+            "big": bool(r.get("big")),
+            "unlabeled": not r.get("source", "labeled").startswith("labeled"),
+            "gfi": any("good first issue" in l.lower() or "good-first-issue" in l.lower()
+                       or "help wanted" in l.lower() for l in r["labels"]),
+        }
+
+    now = datetime.now(timezone.utc)
+    issues = [pack(r) for r in global_rows]
+    payload = {
+        "generated": now.strftime("%Y-%m-%d %H:%M UTC"),
+        "owners": owners,
+        "areas": [a for a, _ in AREAS] + [GENERAL],
+        "issues": issues,
+    }
+    with open(out_path, "w") as fh:
+        json.dump(payload, fh, separators=(",", ":"))
+    return len(issues)
+
+
 def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
                    filter_note, out_path):
     from openpyxl import Workbook
@@ -836,6 +877,8 @@ def main():
     ap.add_argument("--owner", default=None,
                     help="GitHub user or org (comma-separated for several)")
     ap.add_argument("--out", default=DEFAULT_OUT, help="output .xlsx path")
+    ap.add_argument("--json", dest="json_out", default=None,
+                    help="also write dashboard data to this .json path")
     ap.add_argument("--labels", default=",".join(DEFAULT_LABELS),
                     help="comma-separated label spellings to match")
     ap.add_argument("--global-limit", type=int, default=300,
@@ -931,6 +974,10 @@ def main():
     repos = fetch_owner_repos(owners)
     open_mine = build_workbook(global_rows, capped, dropped, mine, repos, owners,
                                labels, filter_note, out_path)
+
+    if args.json_out:
+        n = write_json(global_rows, owners, os.path.expanduser(args.json_out))
+        print(f"  wrote {n} issues to {args.json_out}")
 
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     print(f"[{stamp}] your repos: {len(mine)} items ({open_mine} open) across "

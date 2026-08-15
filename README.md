@@ -24,6 +24,26 @@ supported and adds private repos, but it is never required.
 | **My repo rollup** | Every repo you own with its open and closed counts, so the quiet ones are visible too. |
 | **Run info** | When it ran, what was searched, and what the numbers do and do not cover. |
 
+## The dashboard
+
+`docs/index.html` is a browsable version for people who want to *find* work rather than
+audit their own repos: search, filter by specialty and language, sort by stars or by how
+long an issue has sat untouched, and keep a personal list.
+
+To host it free on GitHub Pages from your own repo:
+
+1. Push this repo to GitHub.
+2. Settings > Pages > Source: "Deploy from a branch", branch `main`, folder `/docs`.
+3. Actions tab > "Refresh accessibility data" > Run workflow, to fill in the first data file.
+
+It then refreshes itself every Monday. The workflow uses the built-in Actions token, so
+there is no secret to create, and `docs/data.json` only ever contains public issues.
+
+The "Your list" panel and its milestones are stored in the visitor's own browser. There
+is no account and no server, so nothing there is verified: it tracks what someone picked,
+not what they merged. "Write my LinkedIn post" drafts a post about their picks and copies
+it, because LinkedIn strips prefilled text from share links.
+
 ## Three ways to use it
 
 ### 1. As a skill for your AI assistant

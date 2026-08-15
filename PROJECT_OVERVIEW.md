@@ -81,6 +81,22 @@ removed, so the filtering is visible rather than silent.
 Filtered rows are replaced rather than subtracted: the pull keeps going until it has the
 requested count of keepers.
 
+## The dashboard
+
+`docs/index.html` is one self-contained file: no build, no dependencies, no framework. It
+fetches `docs/data.json` (about 170 KB for 405 issues) and does all filtering in memory.
+GitHub Pages serves `/docs` from `main`, and `.github/workflows/refresh.yml` regenerates
+the JSON weekly using the built-in `GITHUB_TOKEN`.
+
+`write_json()` publishes public issues only. The owner's own repos are deliberately
+excluded: the file is designed to be committed to a public repo, and a private repo's
+issue titles must never ride along with it.
+
+Recognition is self-reported and says so. A static page cannot verify a merged PR, so it
+tracks picks in `localStorage` and the milestone labels describe exactly that. The
+LinkedIn button drafts the post and copies it to the clipboard rather than passing text in
+the URL, because LinkedIn strips prefilled share text.
+
 ## Spreadsheet mechanics
 
 Dates are written as `datetime` values with a `yyyy-mm-dd` number format, not strings.

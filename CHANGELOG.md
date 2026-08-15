@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-14 20:56
+- Added a dashboard at `docs/index.html`: search, filter by specialty, language, good
+  first issue, and unlabeled; sort by stars, idle time, age, or discussion. One file, no
+  dependencies, light and dark.
+- Added `--json` to export dashboard data, and a personal picks list stored in the
+  visitor's browser with milestone labels and a LinkedIn post drafter
+- Added `.github/workflows/refresh.yml`: weekly refresh using the built-in Actions token,
+  committing `docs/data.json`, so GitHub Pages can host the whole thing for free
+- `write_json()` publishes public issues only. The owner's own repos are excluded so a
+  private repo's issue titles can never end up in a file committed to a public repo.
+- Fixed the empty-state buttons showing on an empty list: `display: flex` on `.actions`
+  outranks the browser's `[hidden]` rule
+- Verified in a browser: filters, claiming, milestones, sorting, and the post draft
+- Files affected: `track_a11y.py`, `docs/index.html`, `docs/data.json`,
+  `.github/workflows/refresh.yml`, `README.md`, `SKILL.md`, `PROJECT_OVERVIEW.md`
+
 ## 2026-08-14 20:49
 - Dates are now real Excel dates with a `yyyy-mm-dd` format instead of strings, so sorting
   by date is chronological. Counts are numbers and blanks are `None`.

@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accessibility issues that need help</title>
+<meta name="description" content="Open accessibility issues in independent open source projects, sorted by specialty.">
+<style>
+  :root {
+    --bg: #fbfbfd; --card: #fff; --ink: #14161a; --muted: #5c6470;
+    --line: #e3e6ec; --accent: #1f5fd0; --accent-ink: #fff;
+    --chip: #eef2fb; --chip-ink: #26467f; --warm: #fff6e0; --warm-ink: #7a5300;
+    --good: #e6f4ea; --good-ink: #146b34;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --card: #171a21; --ink: #eef0f4; --muted: #98a1b0;
+      --line: #262b35; --accent: #6ea0ff; --accent-ink: #0f1115;
+      --chip: #1d2532; --chip-ink: #9dbcff; --warm: #2c2410; --warm-ink: #f0c765;
+      --good: #122c1c; --good-ink: #7fd39b;
+    }
+  }
+  * { box-sizing: border-box; }
+  /* display:flex on .actions outranks the browser's [hidden] rule, so say it here. */
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header { padding: 28px 20px 6px; max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 0 0 4px; max-width: 62ch; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 60px; }
+
+  .bar {
+    position: sticky; top: 0; z-index: 5; background: var(--bg);
+    padding: 14px 0; border-bottom: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+  input, select, button {
+    font: inherit; color: var(--ink); background: var(--card);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  }
+  input[type=search] { flex: 1 1 220px; min-width: 160px; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+  label.check { display: flex; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
+
+  .counts { color: var(--muted); font-size: 13px; padding: 12px 0 4px; }
+
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .card h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.35; }
+  .card h3 a { color: inherit; text-decoration: none; }
+  .card h3 a:hover { text-decoration: underline; }
+  .repo { font-size: 13px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip {
+    background: var(--chip); color: var(--chip-ink); border-radius: 99px;
+    padding: 2px 9px; font-size: 12px; white-space: nowrap;
+  }
+  .chip.good { background: var(--good); color: var(--good-ink); }
+  .chip.warm { background: var(--warm); color: var(--warm-ink); }
+  .meta { font-size: 12px; color: var(--muted); margin-top: auto; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .actions button { font-size: 13px; padding: 6px 10px; }
+  .card.claimed { outline: 2px solid var(--accent); }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin: 16px 0 20px;
+  }
+  .panel h2 { margin: 0 0 4px; font-size: 17px; }
+  .tiers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .tier { padding: 6px 10px; border-radius: 8px; background: var(--chip); color: var(--chip-ink); font-size: 13px; }
+  .tier.off { opacity: .38; }
+  .mylist { margin: 10px 0 0; padding-left: 18px; }
+  .mylist li { margin-bottom: 4px; }
+  textarea {
+    width: 100%; min-height: 108px; margin-top: 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+    padding: 10px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 14px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Accessibility issues that need help</h1>
+  <p class="sub">Open accessibility work in independent open source projects. Big-company
+  repos are hidden by default, because they have paid accessibility teams.</p>
+  <p class="sub" id="stamp"></p>
+</header>
+
+<div class="wrap">
+  <div class="bar">
+    <input type="search" id="q" placeholder="Search title, repo, or label" aria-label="Search issues">
+    <select id="area" aria-label="Filter by specialty"><option value="">All specialties</option></select>
+    <select id="lang" aria-label="Filter by language"><option value="">Any language</option></select>
+    <select id="sort" aria-label="Sort issues">
+      <option value="stars">Most stars</option>
+      <option value="idle">Longest untouched</option>
+      <option value="old">Oldest first</option>
+      <option value="new">Newest first</option>
+      <option value="comments">Most discussed</option>
+    </select>
+    <label class="check"><input type="checkbox" id="gfi"> Good first issue</label>
+    <label class="check"><input type="checkbox" id="unlab"> Unlabeled only</label>
+    <label class="check"><input type="checkbox" id="big"> Include big tech</label>
+  </div>
+
+  <div class="panel" id="me">
+    <h2>Your list</h2>
+    <p class="sub" id="mestat">Nothing picked yet. Hit "I'm on it" on any issue to start a list.</p>
+    <div class="tiers" id="tiers"></div>
+    <ol class="mylist" id="mylist"></ol>
+    <div class="actions" id="meactions" hidden>
+      <button class="primary" id="post">Write my LinkedIn post</button>
+      <button id="clear">Clear list</button>
+    </div>
+    <textarea id="posttext" hidden readonly aria-label="Draft post"></textarea>
+  </div>
+
+  <p class="counts" id="counts"></p>
+  <div class="grid" id="grid"></div>
+
+  <p class="counts" id="empty" hidden>Nothing matches those filters.</p>
+
+  <footer>
+    <p>Data refreshes weekly from the GitHub API. Star counts and labels come straight
+    from each project. Your list is stored only in this browser: no account, no server.</p>
+  </footer>
+</div>
+
+<script>
+const STORE = "a11y-picks-v1";
+let DATA = { issues: [], areas: [], generated: "" };
+let picks = JSON.parse(localStorage.getItem(STORE) || "[]");
+
+const $ = id => document.getElementById(id);
+const days = iso => Math.round((Date.now() - new Date(iso + "T00:00:00Z")) / 86400000);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// Milestones are self-reported on purpose. Nobody can verify a merged PR from a
+// static page, so the page does not pretend to: it tracks what you picked.
+const TIERS = [
+  [1, "Picked one"], [3, "Three in flight"], [5, "Five deep"],
+  [10, "Ten issues in"], [25, "Twenty five"]
+];
+
+function load() {
+  fetch("data.json")
+    .then(r => r.json())
+    .then(d => { DATA = d; init(); })
+    .catch(() => { $("counts").textContent = "Could not load data.json."; });
+}
+
+function init() {
+  $("stamp").textContent = "Last refreshed " + DATA.generated + " · " +
+    DATA.issues.filter(i => !i.big).length + " open issues across " +
+    new Set(DATA.issues.filter(i => !i.big).map(i => i.repo)).size + " projects";
+
+  const areas = [...new Set(DATA.issues.flatMap(i => i.areas))].sort();
+  for (const a of areas) $("area").add(new Option(a, a));
+
+  const langs = [...new Set(DATA.issues.map(i => i.language))].filter(l => l && l !== "-").sort();
+  for (const l of langs) $("lang").add(new Option(l, l));
+
+  for (const el of ["q", "area", "lang", "sort", "gfi", "unlab", "big"]) {
+    $(el).addEventListener("input", render);
+  }
+  $("post").addEventListener("click", writePost);
+  $("clear").addEventListener("click", () => {
+    picks = []; save(); render();
+  });
+  render();
+}
+
+function matches(i) {
+  if (!$("big").checked && i.big) return false;
+  if ($("gfi").checked && !i.gfi) return false;
+  if ($("unlab").checked && !i.unlabeled) return false;
+  const area = $("area").value;
+  if (area && !i.areas.includes(area)) return false;
+  const lang = $("lang").value;
+  if (lang && i.language !== lang) return false;
+  const q = $("q").value.trim().toLowerCase();
+  if (q) {
+    const hay = (i.title + " " + i.repo + " " + i.labels.join(" ") + " " + i.areas.join(" ")).toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+  return true;
+}
+
+const SORTS = {
+  stars: (a, b) => b.stars - a.stars,
+  comments: (a, b) => b.comments - a.comments,
+  idle: (a, b) => new Date(a.updated) - new Date(b.updated),
+  old: (a, b) => new Date(a.created) - new Date(b.created),
+  new: (a, b) => new Date(b.created) - new Date(a.created),
+};
+
+function render() {
+  const list = DATA.issues.filter(matches).sort(SORTS[$("sort").value]);
+  $("counts").textContent = list.length + " issue" + (list.length === 1 ? "" : "s") +
+    " · " + list.filter(i => i.gfi).length + " tagged good first issue";
+  $("empty").hidden = list.length > 0;
+
+  $("grid").innerHTML = list.slice(0, 300).map(card).join("");
+  for (const btn of document.querySelectorAll("[data-pick]")) {
+    btn.addEventListener("click", () => toggle(btn.dataset.pick));
+  }
+  renderMe();
+}
+
+function card(i) {
+  const picked = picks.some(p => p.url === i.url);
+  return `<article class="card ${picked ? "claimed" : ""}">
+    <div class="repo">
+      <strong>${esc(i.repo)}</strong>
+      <span>★ ${i.stars.toLocaleString()}</span>
+      ${i.language && i.language !== "-" ? `<span>${esc(i.language)}</span>` : ""}
+    </div>
+    <h3><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a></h3>
+    <div class="chips">
+      ${i.areas.map(a => `<span class="chip">${esc(a)}</span>`).join("")}
+      ${i.gfi ? `<span class="chip good">good first issue</span>` : ""}
+      ${i.unlabeled ? `<span class="chip warm">nobody labeled this</span>` : ""}
+    </div>
+    <div class="meta">opened ${esc(i.created)} · quiet for ${days(i.updated)} days · ${i.comments} comments</div>
+    <div class="actions">
+      <button data-pick="${esc(i.url)}">${picked ? "On your list" : "I'm on it"}</button>
+      <a class="chip" href="${esc(i.url)}" target="_blank" rel="noopener">Open issue</a>
+    </div>
+  </article>`;
+}
+
+function toggle(url) {
+  const i = DATA.issues.find(x => x.url === url);
+  if (!i) return;
+  const at = picks.findIndex(p => p.url === url);
+  if (at >= 0) picks.splice(at, 1);
+  else picks.push({ url, repo: i.repo, title: i.title, areas: i.areas });
+  save();
+  render();
+}
+
+function save() { localStorage.setItem(STORE, JSON.stringify(picks)); }
+
+function renderMe() {
+  const n = picks.length;
+  $("mestat").textContent = n
+    ? n + " issue" + (n === 1 ? "" : "s") + " on your list."
+    : 'Nothing picked yet. Hit "I\'m on it" on any issue to start a list.';
+  $("meactions").hidden = n === 0;
+  if (!n) $("posttext").hidden = true;
+
+  $("tiers").innerHTML = TIERS.map(([need, name]) =>
+    `<span class="tier ${n >= need ? "" : "off"}">${name}</span>`).join("");
+
+  $("mylist").innerHTML = picks.map(p =>
+    `<li><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.repo)}</a> — ${esc(p.title)}</li>`
+  ).join("");
+}
+
+function writePost() {
+  const areas = [...new Set(picks.flatMap(p => p.areas))].slice(0, 3).join(", ");
+  const repos = [...new Set(picks.map(p => p.repo))];
+  const text =
+`I picked up ${picks.length} open accessibility issue${picks.length === 1 ? "" : "s"} in open source this week.
+
+${picks.slice(0, 5).map(p => `• ${p.repo}: ${p.title}\n  ${p.url}`).join("\n")}
+
+Areas: ${areas || "accessibility"}.
+
+These are real barriers for people using screen readers, keyboards, and assistive tech. ${repos.length === 1 ? "This project is" : "These projects are"} maintained by volunteers, so a single fix goes a long way.
+
+If you write code and want somewhere useful to start, accessibility issues are a good door in.
+
+#accessibility #a11y #opensource`;
+
+  const box = $("posttext");
+  box.value = text;
+  box.hidden = false;
+  box.select();
+  try {
+    navigator.clipboard.writeText(text);
+    $("post").textContent = "Copied, opening LinkedIn";
+  } catch (e) {
+    $("post").textContent = "Copy the text below";
+  }
+  // LinkedIn strips prefilled text from share URLs, so the post is on the
+  // clipboard and the composer opens empty. Paste is one keystroke.
+  setTimeout(() => window.open("https://www.linkedin.com/feed/?shareActive=true", "_blank", "noopener"), 400);
+  setTimeout(() => { $("post").textContent = "Write my LinkedIn post"; }, 4000);
+}
+
+load();
+</script>
+</body>
+</html>

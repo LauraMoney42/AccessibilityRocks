@@ -60,6 +60,13 @@ If they want either, they can run `gh auth login --web` (opens github.com, no ke
 copy) or set `GH_TOKEN`. The script picks up a token automatically. Never make this a
 prerequisite.
 
+## The dashboard
+
+`docs/index.html` plus `docs/data.json` is a static site for browsing the issues. Generate
+its data with `--json docs/data.json`. It is hosted on GitHub Pages from `/docs` and
+refreshed weekly by `.github/workflows/refresh.yml`. If the user asks to publish it, point
+them at Settings > Pages > "Deploy from a branch" > main > /docs.
+
 ## Scheduling
 
 `./install.sh` sets up a weekly macOS job and asks for a day and time. Only bring this
