@@ -14,11 +14,12 @@ supported and adds private repos, but it is never required.
 
 ## What you get
 
-`accessibility-issues.xlsx`, four sheets:
+`accessibility-issues.xlsx`, five sheets:
 
 | Sheet | Contents |
 | --- | --- |
-| **All public repos** | Open accessibility issues in independent open source projects, most-starred first. Big-company repos are filtered out, and there is a "good first issue" column. |
+| **All public repos** | Open accessibility issues, most-starred first. Column A is the specialty, column B is `independent` or `big company`, and "Found via" says whether the issue carried a label or was caught by text search. |
+| **By specialty** | The index: how many open issues and projects sit in each area, how many are good first issues, and the most-starred project in that area. Start here, then filter column A on the sheet before it. |
 | **My repos** | Accessibility issues in your own repos, open and closed. Open items sort first, amber for open, green for closed. |
 | **My repo rollup** | Every repo you own with its open and closed counts, so the quiet ones are visible too. |
 | **Run info** | When it ran, what was searched, and what the numbers do and do not cover. |
@@ -77,6 +78,31 @@ On Linux, add this to `crontab -e` instead (last field is the day, 0 for Sunday)
 --labels A,B,C        label spellings to match
 --out PATH            where to write the .xlsx
 ```
+
+## Finding your area
+
+Issues are sorted into nine specialties from their title, labels, and body:
+
+Screen reader & ARIA, Keyboard & focus, Color & contrast, Captions & media, Motion &
+seizure safety, Text & zoom, Forms & error messages, Touch & mobile, Cognitive & plain
+language. Anything that cannot be placed lands in **General / unclassified** rather than
+being guessed at.
+
+Open the **By specialty** sheet, find your row, then filter column A on the public sheet
+to that area. A typical run puts around 130 issues in Screen reader & ARIA and 55 in
+Keyboard & focus.
+
+## Work nobody labeled
+
+The `accessibility` label only helps once a maintainer applies it, so everything filed
+before it existed is still sitting under `bug` or `enhancement`. A second pass searches
+issue **titles** for `screen reader`, `keyboard navigation`, `color contrast`, `alt text`,
+`WCAG`, and `aria-label`, excluding anything already labeled. Those rows say
+`text match: "<phrase>"` in the Found via column, and a recent run turned up 136 of them:
+Chart.js keyboard navigation, scikit-learn alt text, Telegram screen reader support.
+
+Title matching is deliberate. Searching bodies pulled in issue templates and game
+compatibility reports that merely mentioned the words. `--no-untagged` skips the pass.
 
 ## Big tech is a filter, not a decision
 

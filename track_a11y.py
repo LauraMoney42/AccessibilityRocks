@@ -78,6 +78,69 @@ BIG_TECH_OWNERS = {
 # means it found one it could not identify, which is not a promise of open source.
 UNCLEAR_LICENSES = {None, "", "NOASSERTION"}
 
+# Accessibility specialties, checked in order: the first match wins, so the more
+# specific areas have to come before the general ones. Someone who does screen
+# reader work and someone who does color contrast work want different rows, and
+# neither wants to read all 300.
+AREAS = [
+    ("Screen reader & ARIA", [
+        "screen reader", "screenreader", "voiceover", "nvda", "jaws", "talkback",
+        "narrator", "aria-", "aria ", "role=", "landmark", "semantics", "announce",
+        "alt text", "alt attribute", "image description", "accessible name",
+    ]),
+    ("Keyboard & focus", [
+        "keyboard", "focus", "tab order", "tabindex", "tab key", "shortcut",
+        "focus trap", "focus ring", "focus indicator", "arrow key",
+    ]),
+    ("Captions & media", [
+        "caption", "subtitle", "transcript", "audio description", "sign language",
+    ]),
+    ("Motion & seizure safety", [
+        "reduced motion", "prefers-reduced-motion", "animation", "parallax",
+        "flashing", "blinking", "seizure", "autoplay",
+    ]),
+    ("Color & contrast", [
+        "contrast", "color blind", "colour blind", "colorblind", "low vision",
+        "dark mode", "light mode", "high contrast", "color only", "colour only",
+    ]),
+    ("Text & zoom", [
+        "font size", "text size", "zoom", "text scaling", "line height",
+        "dyslexi", "reflow", "magnif",
+    ]),
+    ("Forms & error messages", [
+        "form", "input field", "placeholder", "error message", "validation",
+        "required field", "autocomplete attribute",
+    ]),
+    ("Touch & mobile", [
+        "touch target", "tap target", "gesture", "pinch", "swipe", "mobile a11y",
+        "hit area",
+    ]),
+    ("Cognitive & plain language", [
+        "cognitive", "plain language", "readability", "timeout", "time limit",
+        "distraction", "easy read",
+    ]),
+]
+
+# Phrases used to find accessibility work that nobody labeled. GitHub search
+# treats a quoted phrase as an exact match, so these stay narrow on purpose:
+# "focus" alone would return half of GitHub.
+UNTAGGED_PHRASES = [
+    "screen reader", "keyboard navigation", "color contrast",
+    "alt text", "WCAG", "aria-label",
+]
+
+
+GENERAL = "General / unclassified"
+
+
+def classify(title, labels, body=""):
+    """Best-guess specialty for an issue, from its title, labels, and body."""
+    haystack = " ".join([title or "", " ".join(labels or []), (body or "")[:600]]).lower()
+    for area, needles in AREAS:
+        if any(n in haystack for n in needles):
+            return area
+    return GENERAL
+
 
 # --------------------------------------------------------------------------
 # Auth: entirely optional
@@ -194,6 +257,10 @@ query($q: String!, $after: String) {
     pageInfo { hasNextPage endCursor }
     nodes {
       ... on Issue {
+        # No bodyText here on purpose: issue bodies are unbounded, and asking for
+        # 100 of them either trips GraphQL's cost limit or times out with a 502.
+        # Specialty is guessed from the title and labels instead, which is what
+        # the labeled path has to work with anyway.
         number title url createdAt updatedAt state
         comments { totalCount }
         labels(first: 20) { nodes { name } }
@@ -269,9 +336,12 @@ def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, 
                     continue
                 big = is_big(repo["nameWithOwner"])
                 independent += 0 if big else 1
+                node_labels = [l["name"] for l in n["labels"]["nodes"]]
                 rows.append({
                     "repo": repo["nameWithOwner"],
                     "big": big,
+                    "area": classify(n["title"], node_labels),
+                    "source": "labeled",
                     "stars": repo["stargazerCount"],
                     "license": (repo.get("licenseInfo") or {}).get("spdxId") or "none",
                     "language": (repo.get("primaryLanguage") or {}).get("name") or "-",
@@ -301,6 +371,9 @@ def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, 
             rows.append({
                 "repo": full,
                 "big": is_big(full),
+                "area": classify(i["title"], [l["name"] for l in i.get("labels", [])],
+                                 i.get("body")),
+                "source": "labeled",
                 "stars": None,
                 "license": "?",
                 "language": "-",
@@ -340,6 +413,116 @@ def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, 
                             -(r["stars"] if r["stars"] is not None else -1),
                             -r["comments"]))
     return rows, capped, {k: v for k, v in dropped.items() if v}
+
+
+def search_untagged(labels, per_phrase, big_owners, drop_big, per_repo, seen_urls):
+    """Accessibility work nobody labeled.
+
+    The new default label only helps once maintainers apply it. Everything filed
+    before that is still sitting under `bug` or `enhancement`, so this searches
+    issue text for the phrases that give it away and excludes anything already
+    carrying an accessibility label.
+    """
+    excluded = ",".join(f'"{l}"' if " " in l else l for l in labels)
+    rows, per_repo_count = [], {}
+
+    for phrase in UNTAGGED_PHRASES:
+        # in:title is the precision fix: matching the body pulled in issue
+        # templates and game-compatibility reports that merely said the words.
+        query = f'"{phrase}" in:title is:issue is:open is:public -label:{excluded}'
+        for i in search_rest(query, per_phrase, sort="comments"):
+            url = i["html_url"]
+            if url in seen_urls:
+                continue
+            full = "/".join(i["repository_url"].split("/")[-2:])
+            big = full.split("/")[0].lower() in big_owners
+            if drop_big and big:
+                continue
+            if per_repo and per_repo_count.get(full, 0) >= per_repo:
+                continue
+            per_repo_count[full] = per_repo_count.get(full, 0) + 1
+            seen_urls.add(url)
+            issue_labels = [l["name"] for l in i.get("labels", [])]
+            rows.append({
+                "repo": full,
+                "big": big,
+                "area": classify(i["title"], issue_labels, i.get("body")),
+                "source": f'text match: "{phrase}"',
+                "stars": None,
+                "license": "?",
+                "language": "-",
+                "number": i["number"],
+                "title": i["title"],
+                "url": url,
+                "labels": issue_labels,
+                "comments": i.get("comments", 0),
+                "createdAt": i["created_at"],
+                "updatedAt": i["updated_at"],
+            })
+    return rows
+
+
+def add_stars(rows):
+    """Fill in star counts for rows that arrived without them (GraphQL, batched)."""
+    missing = sorted({r["repo"] for r in rows if r["stars"] is None})
+    if not missing:
+        return
+
+    if TOKEN:
+        # One GraphQL call per 50 repos beats one REST call each.
+        for chunk_start in range(0, len(missing), 50):
+            chunk = missing[chunk_start:chunk_start + 50]
+            fields = []
+            for idx, full in enumerate(chunk):
+                owner, name = full.split("/", 1)
+                fields.append(f'r{idx}: repository(owner: "{owner}", name: "{name}") '
+                              '{ nameWithOwner stargazerCount licenseInfo { spdxId } '
+                              'primaryLanguage { name } }')
+            data = graphql("query { " + " ".join(fields) + " }", {}) or {}
+            for value in data.values():
+                if not value:
+                    continue
+                for r in rows:
+                    if r["repo"] == value["nameWithOwner"]:
+                        r["stars"] = value["stargazerCount"]
+                        r["license"] = (value.get("licenseInfo") or {}).get("spdxId") or "none"
+                        r["language"] = (value.get("primaryLanguage") or {}).get("name") or "-"
+    else:
+        for full in missing[:ANON_STAR_LOOKUPS]:
+            info = request(f"{API}/repos/{full}", soft=True)
+            if not info:
+                break
+            for r in rows:
+                if r["repo"] == full:
+                    r["stars"] = info.get("stargazers_count", 0)
+                    r["language"] = info.get("language") or "-"
+
+
+def refine_areas(rows, cap=150):
+    """Re-classify vague rows by reading the issue body.
+
+    Titles like "Improve accessibility" place nowhere, and the bulk search
+    cannot carry bodies (GraphQL times out on them). One REST call per unplaced
+    issue is affordable with a token and worth it: an unsorted pile helps nobody
+    find their specialty.
+    """
+    todo = [r for r in rows if r["area"] == GENERAL][:cap]
+    if not todo:
+        return 0
+
+    def fetch(r):
+        return request(f"{API}/repos/{r['repo']}/issues/{r['number']}", soft=True)
+
+    moved = 0
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for r, info in zip(todo, pool.map(fetch, todo)):
+            if not info:
+                continue
+            area = classify(r["title"], r["labels"], info.get("body"))
+            if area != GENERAL:
+                r["area"] = area
+                moved += 1
+    return moved
 
 
 def search_owner_issues(owners, labels):
@@ -443,14 +626,16 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
     # --- Sheet 1: all public repos, most popular first ---------------------
     ws = wb.active
     ws.title = "All public repos"
-    ws.append(["Owner", "Repo", "Stars", "License", "Language", "#", "Title", "Labels",
-               "Comments", "Good first issue", "Created", "Updated", "Age (days)", "Link"])
+    ws.append(["Area", "Owner", "Repo", "Stars", "License", "Language", "#", "Title",
+               "Labels", "Found via", "Comments", "Good first issue", "Created",
+               "Updated", "Age (days)", "Link"])
     big_rows = []
     for r in global_rows:
         created = parse_ts(r["createdAt"])
         gfi = any("good first issue" in l.lower() or "good-first-issue" in l.lower()
                   or "help wanted" in l.lower() for l in r["labels"])
         ws.append([
+            r.get("area", GENERAL),
             "big company" if r.get("big") else "independent",
             r["repo"],
             r["stars"] if r["stars"] is not None else "",
@@ -459,6 +644,7 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
             r["number"],
             r["title"],
             ", ".join(r["labels"]),
+            r.get("source", "labeled"),
             r["comments"],
             "yes" if gfi else "",
             created.strftime("%Y-%m-%d") if created else "",
@@ -466,30 +652,55 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
             (now - created).days if created else "",
             r["url"],
         ])
-        link_cell(ws, ws.max_row, 14, r["url"])
+        link_cell(ws, ws.max_row, 16, r["url"])
         if r.get("big"):
             big_rows.append(ws.max_row)
-            for c in range(1, 15):
+            for c in range(1, 17):
                 ws.cell(row=ws.max_row, column=c).fill = big_fill
-    style(ws, [13, 32, 8, 12, 12, 7, 54, 26, 10, 16, 12, 12, 11, 8])
+    style(ws, [26, 13, 30, 8, 11, 11, 7, 50, 24, 22, 10, 16, 12, 12, 11, 8])
 
     # Column A opens filtered to "independent". Clearing the filter in Excel (or
     # unhiding the rows) brings the big-company issues back, which is the point:
     # the decision lives in the spreadsheet, not in how the file was generated.
     if big_rows:
-        ws.auto_filter.add_filter_column(0, ["independent"], blank=False)
+        ws.auto_filter.add_filter_column(1, ["independent"], blank=False)
         for row_idx in big_rows:
             ws.row_dimensions[row_idx].hidden = True
 
-    # --- Sheet 2: your own repos ------------------------------------------
+    # --- Sheet 2: pick your specialty --------------------------------------
+    # An index, not data: someone who does screen reader work should be able to
+    # see their pile without scrolling the whole public sheet.
+    ws_area = wb.create_sheet("By specialty")
+    ws_area.append(["Area", "Open issues", "Projects", "Good first issue",
+                    "Unlabeled", "Most-starred project"])
+    tally = {}
+    for r in global_rows:
+        if r.get("big"):
+            continue
+        t = tally.setdefault(r.get("area", GENERAL),
+                             {"n": 0, "repos": {}, "gfi": 0, "untagged": 0})
+        t["n"] += 1
+        t["repos"][r["repo"]] = max(t["repos"].get(r["repo"], 0), r["stars"] or 0)
+        if any("good first issue" in l.lower() or "good-first-issue" in l.lower()
+               or "help wanted" in l.lower() for l in r["labels"]):
+            t["gfi"] += 1
+        if not r.get("source", "labeled").startswith("labeled"):
+            t["untagged"] += 1
+    for area, t in sorted(tally.items(), key=lambda kv: -kv[1]["n"]):
+        top = max(t["repos"], key=lambda k: t["repos"][k]) if t["repos"] else "-"
+        ws_area.append([area, t["n"], len(t["repos"]), t["gfi"], t["untagged"], top])
+    style(ws_area, [28, 12, 10, 16, 11, 34])
+
+    # --- Sheet 3: your own repos ------------------------------------------
     ws2 = wb.create_sheet("My repos")
-    ws2.append(["Repo", "#", "Title", "State", "Labels", "Assignee", "Comments",
+    ws2.append(["Area", "Repo", "#", "Title", "State", "Labels", "Assignee", "Comments",
                 "Created", "Updated", "Age (days)", "Link"])
     # Open first, then most recently updated: the top of the sheet is the work.
     mine.sort(key=lambda i: (i["state"] != "open", -parse_ts(i["updatedAt"]).timestamp()))
     for i in mine:
         created = parse_ts(i["createdAt"])
         ws2.append([
+            classify(i["title"], i["labels"]),
             i["repo"], i["number"], i["title"], i["state"],
             ", ".join(i["labels"]), i["assignee"], i["comments"],
             created.strftime("%Y-%m-%d") if created else "",
@@ -499,12 +710,12 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
         ])
         row = ws2.max_row
         fill = open_fill if i["state"] == "open" else closed_fill
-        for c in range(1, 12):
+        for c in range(1, 13):
             ws2.cell(row=row, column=c).fill = fill
-        link_cell(ws2, row, 11, i["url"])
-    style(ws2, [30, 6, 58, 8, 32, 16, 10, 12, 12, 11, 8])
+        link_cell(ws2, row, 12, i["url"])
+    style(ws2, [26, 28, 6, 56, 8, 30, 16, 10, 12, 12, 11, 8])
 
-    # --- Sheet 3: your repo rollup ----------------------------------------
+    # --- Sheet 4: your repo rollup ----------------------------------------
     ws3 = wb.create_sheet("My repo rollup")
     ws3.append(["Repo", "Stars", "Open a11y", "Closed a11y", "Total",
                 "Private", "Archived", "Repo updated", "Link"])
@@ -532,7 +743,7 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
         link_cell(ws3, ws3.max_row, 9, repo["html_url"])
     style(ws3, [34, 8, 11, 12, 8, 9, 10, 14, 8])
 
-    # --- Sheet 4: run metadata --------------------------------------------
+    # --- Sheet 5: run metadata --------------------------------------------
     ws4 = wb.create_sheet("Run info")
     open_mine = sum(1 for i in mine if i["state"] == "open")
     notes = [
@@ -583,6 +794,12 @@ def main():
                     help="how many public issues to pull (max 1000, default 300)")
     ap.add_argument("--no-global", action="store_true",
                     help="skip the all-public-repos sheet")
+    ap.add_argument("--no-deep-classify", action="store_true",
+                    help="skip reading issue bodies to sort vague titles into a specialty")
+    ap.add_argument("--no-untagged", action="store_true",
+                    help="skip the search for accessibility work nobody labeled")
+    ap.add_argument("--untagged-per-phrase", type=int, default=25,
+                    help="how many results per untagged search phrase, default 25")
     ap.add_argument("--exclude-big-tech", action="store_true",
                     help="leave big-company issues out of the file entirely, rather than "
                          "including them behind the spreadsheet filter")
@@ -642,6 +859,23 @@ def main():
         extra = len(global_rows) - indie
         print(f"  {indie} open accessibility issues in independent public repos"
               + (f", plus {extra} big-company ones hidden behind the filter" if extra else ""))
+
+        if not args.no_untagged:
+            seen = {r["url"] for r in global_rows}
+            untagged = search_untagged(labels, args.untagged_per_phrase, big_owners,
+                                       args.exclude_big_tech, args.per_repo, seen)
+            add_stars(untagged)
+            global_rows.extend(untagged)
+            print(f"  {len(untagged)} more that look like accessibility work "
+                  f"but carry no accessibility label")
+
+        if not args.no_deep_classify:
+            moved = refine_areas(global_rows)
+            print(f"  sorted {moved} vague ones into a specialty by reading the issue")
+
+        global_rows.sort(key=lambda r: (r["big"],
+                                        -(r["stars"] if r["stars"] is not None else -1),
+                                        -r["comments"]))
 
     mine = search_owner_issues(owners, labels)
     repos = fetch_owner_repos(owners)

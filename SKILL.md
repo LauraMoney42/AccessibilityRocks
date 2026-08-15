@@ -5,12 +5,13 @@ description: Build a spreadsheet of accessibility-labeled GitHub issues, both ac
 
 # a11y-tracker
 
-Produces `accessibility-issues.xlsx` with four sheets:
+Produces `accessibility-issues.xlsx` with five sheets:
 
 1. **All public repos** - open accessibility issues, most-starred first, with a "good first issue" column. Column A tags each row `independent` or `big company`, and the sheet opens filtered to `independent`. Big-company rows are present but hidden, so the reader can unhide them without re-running anything. Unlicensed repos, archived repos, and forks are left out.
-2. **My repos** - accessibility issues in the person's own repos, open and closed
-3. **My repo rollup** - per-repo counts, so empty repos are visible too
-4. **Run info** - what was searched and when
+2. **By specialty** - counts per accessibility area (Screen reader & ARIA, Keyboard & focus, Color & contrast, and six more). The fastest answer to "where can someone with my skills help?"
+3. **My repos** - accessibility issues in the person's own repos, open and closed
+4. **My repo rollup** - per-repo counts, so empty repos are visible too
+5. **Run info** - what was searched and when
 
 ## Running it
 
@@ -43,6 +44,8 @@ works immediately for anyone. Do not ask the user to authenticate before trying.
 | `--exclude-big-tech` | leave big-company issues out of the file entirely |
 | `--exclude-owners a,b` | filter out more owners |
 | `--min-stars N` | ignore repos below a star count |
+| `--no-untagged` | skip the search for accessibility work nobody labeled |
+| `--no-deep-classify` | skip reading issue bodies to sort vague titles |
 | `--out PATH` | write somewhere else |
 
 ## When to suggest signing in
@@ -61,6 +64,13 @@ prerequisite.
 `./install.sh` sets up a weekly macOS job and asks for a day and time. Only bring this
 up if the user asks for recurring updates. It must not live in `~/Documents`,
 `~/Desktop`, or `~/Downloads`, since macOS blocks background jobs from those folders.
+
+## Pointing someone at work they can do
+
+If the user says what they specialize in (screen readers, keyboard, contrast, captions),
+read the **By specialty** sheet, then name specific issues from that area on the public
+sheet. Prefer rows where "Good first issue" is yes. The rows tagged `text match` in Found
+via are unlabeled work, which usually means nobody else is looking at it.
 
 ## Notes
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-08-14 20:39
+- Added a specialty column and a **By specialty** index sheet, so a contributor can find
+  the accessibility area they actually work in. Nine areas, ordered keyword matching,
+  with an honest `General / unclassified` bucket for titles that place nowhere.
+- Added a second search pass for accessibility work nobody labeled: six phrases matched
+  against issue titles, excluding anything already carrying an accessibility label. The
+  last run found 136, including Chart.js keyboard navigation and scikit-learn alt text.
+- The untagged pass matches `in:title` only. Matching bodies returned Proton game
+  compatibility reports and a Prettier tabs debate, because templates mention the words.
+- Added `refine_areas()`: a capped second pass that reads issue bodies to place vague
+  titles, moving 64 of 100 unclassified rows into a real specialty
+- Dropped `bodyText` from the bulk GraphQL query. 100 nodes with bodies returns
+  RESOURCE_LIMITS_EXCEEDED, and 50 nodes returns a 502: issue bodies are unbounded.
+- Added a "Found via" column showing `labeled` or `text match: "<phrase>"`
+- Added `--no-untagged` and `--no-deep-classify`
+- Files affected: `track_a11y.py`, `README.md`, `SKILL.md`, `PROJECT_OVERVIEW.md`
+
 ## 2026-08-14 20:19
 - Big tech is now a spreadsheet filter instead of a fetch-time decision. Column A tags
   every public row `independent` or `big company`; the file opens filtered to

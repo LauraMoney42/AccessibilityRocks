@@ -81,6 +81,31 @@ removed, so the filtering is visible rather than silent.
 Filtered rows are replaced rather than subtracted: the pull keeps going until it has the
 requested count of keepers.
 
+## Specialty classification
+
+`AREAS` is an ordered list of (area, keywords). First match wins, so specific areas come
+before general ones, and anything unplaced lands in `General / unclassified` rather than
+being guessed at. Three inputs feed it: title, labels, and body.
+
+The body is the awkward one. GraphQL cannot carry it in bulk: 100 issue nodes with
+`bodyText` returns `RESOURCE_LIMITS_EXCEEDED`, and dropping to 50 nodes traded that for a
+502 timeout. Issue bodies are unbounded, so there is no page size that makes this safe.
+The bulk search therefore classifies on title and labels only, and `refine_areas()` makes
+a second pass: one REST call per unplaced issue, capped at 150, eight at a time, soft so
+failures cost a row rather than the run. That pass moved 64 of 100 vague rows into a real
+specialty on the last run.
+
+## The unlabeled pass
+
+The new default label only helps going forward, so `search_untagged()` looks for the work
+that predates it: six phrases, `in:title`, excluding anything already carrying an
+accessibility label.
+
+`in:title` is not an optimization, it is the difference between usable and useless.
+Searching bodies returned `ValveSoftware/Proton` game compatibility reports and a Prettier
+tabs-vs-spaces debate, because those issues mention the words somewhere in a template.
+Title matching returned Chart.js keyboard navigation and scikit-learn alt text.
+
 ## Design decisions worth remembering
 
 - **Comma-separated labels are OR in GitHub search.** `label:accessibility,a11y,"a b"`
@@ -110,3 +135,6 @@ requested count of keepers.
 - Top of the public sheet after filtering: electron, mui, storybook, svelte, mastodon,
   leaflet, NewPipe. Before filtering it was microsoft/vscode and react-native.
 - Weekly launchd run: exit 0
+- Full run with both extra passes: about 50 seconds, 250 labeled + 136 unlabeled rows
+- Specialty spread on that run: 134 screen reader, 100 unclassified, 56 keyboard,
+  40 contrast, 36 forms, 9 text and zoom, 3 captions, 2 motion, 1 cognitive
