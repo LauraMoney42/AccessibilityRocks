@@ -103,15 +103,23 @@
   }
   footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 14px; }
   .small { font-size: 12px; }
-  .board { list-style: none; margin: 10px 0 6px; padding: 0; display: grid; gap: 6px;
-           grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-  .board li { display: flex; align-items: center; gap: 10px; padding: 6px 8px;
-              border: 1px solid var(--line); border-radius: 10px; }
-  .board img { width: 30px; height: 30px; border-radius: 50%; background: var(--chip); }
-  .board .rank { color: var(--muted); font-size: 12px; width: 22px; text-align: right; }
+  /* Top ten, packed tight. No horizontal scroller: it would have needed its own
+     focusable region and a name to stay keyboard-usable, and ten rows fit fine. */
+  .board {
+    list-style: none; margin: 10px 0 4px; padding: 0; display: grid; gap: 4px;
+    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  }
+  .board li {
+    display: flex; align-items: center; gap: 7px; padding: 4px 6px;
+    border: 1px solid var(--line); border-radius: 8px; font-size: 13px;
+  }
+  .board img { width: 22px; height: 22px; border-radius: 50%; background: var(--chip); flex: 0 0 auto; }
+  .board .rank { color: var(--muted); font-size: 11px; width: 15px; text-align: right; flex: 0 0 auto; }
+  .board .stack { min-width: 0; }
+  .board .who { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .board .who { font-weight: 600; text-decoration: none; color: inherit; }
   .board .who:hover { text-decoration: underline; }
-  .board .stat { color: var(--muted); font-size: 12px; }
+  .board .stat { color: var(--muted); font-size: 11px; }
   .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
   .badges img { height: 20px; }
   a { color: var(--accent); }
@@ -144,13 +152,33 @@
   </div>
 
   <div class="panel" id="me">
-    <h2>Your list</h2>
+    <h2>Your shortlist</h2>
+    <p class="sub small">A private bookmark list, stored in this browser only. It does not
+    comment on the issue or tell the maintainer anything, so nobody is blocked if you
+    change your mind. To claim an issue for real, say so in a comment on GitHub.</p>
     <p class="sub" id="mestat" role="status" aria-live="polite">Nothing picked yet. Hit "I'm on it" on any issue to start a list.</p>
-    <div class="tiers" id="tiers"></div>
     <ol class="mylist" id="mylist"></ol>
     <div class="actions" id="meactions" hidden>
+      <button id="clear">Clear shortlist</button>
+    </div>
+  </div>
+
+  <div class="panel" id="credit">
+    <h2>Get credit for what you fixed</h2>
+    <p class="sub">The post writer unlocks once you are on the scoreboard, which means
+    GitHub confirms you have merged an accessibility fix. Picking issues does not unlock
+    it: shipping does.</p>
+    <div class="actions">
+      <label class="check" for="ghuser">GitHub username</label>
+      <input id="ghuser" type="text" autocomplete="username" spellcheck="false"
+             placeholder="your-username" aria-describedby="vstatus">
+      <button class="primary" id="verify">Check the scoreboard</button>
+    </div>
+    <p class="sub" id="vstatus" role="status" aria-live="polite"></p>
+    <div class="tiers" id="tiers"></div>
+    <div class="actions" id="creditactions" hidden>
       <button class="primary" id="post">Write my LinkedIn post</button>
-      <button id="clear">Clear list</button>
+      <button id="signout">Not me</button>
     </div>
     <textarea id="posttext" hidden readonly aria-label="Your draft LinkedIn post"></textarea>
   </div>
@@ -158,10 +186,10 @@
   <div class="panel" id="board">
     <h2>Who has been fixing these</h2>
     <p class="sub" id="boardsub"></p>
-    <ol class="board" id="boardlist" role="list"></ol>
-    <p class="sub small">Merged pull requests carrying an accessibility label, straight
-    from the GitHub API. Ranked with each project counting at most five fixes, so one
-    project's backlog cannot own the board. Fixes to your own repos are not counted.</p>
+    <ol class="board" id="boardlist" role="list" aria-label="Top accessibility fixers"></ol>
+    <p class="sub small">Merged pull requests carrying an accessibility label, from the
+    GitHub API. Each project counts at most five fixes, so one backlog cannot own the
+    board, and fixes to your own repos are not counted.</p>
   </div>
 
   <p class="counts" id="counts" role="status" aria-live="polite"></p>
@@ -180,8 +208,10 @@
 
 <script>
 const STORE = "a11y-picks-v1";
+const VERIFIED = "a11y-verified-v1";
 let DATA = { issues: [], areas: [], generated: "" };
 let picks = JSON.parse(localStorage.getItem(STORE) || "[]");
+let me = JSON.parse(localStorage.getItem(VERIFIED) || "null");
 const PAGE = 100;      // tab stops, not bytes: 300 cards is ~900 stops to pass through
 let shown = PAGE;
 
@@ -189,11 +219,11 @@ const $ = id => document.getElementById(id);
 const days = iso => Math.round((Date.now() - new Date(iso + "T00:00:00Z")) / 86400000);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-// Milestones are self-reported on purpose. Nobody can verify a merged PR from a
-// static page, so the page does not pretend to: it tracks what you picked.
+// Milestones count merged accessibility fixes that GitHub confirms, not clicks
+// on this page. A bookmark is not an achievement.
 const TIERS = [
-  [1, "Picked one"], [3, "Three in flight"], [5, "Five deep"],
-  [10, "Ten issues in"], [25, "Twenty five"]
+  [1, "First fix merged"], [3, "Three merged"], [5, "Five merged"],
+  [10, "Ten merged"], [25, "Twenty five merged"]
 ];
 
 function load() {
@@ -226,6 +256,13 @@ function init() {
   });
   renderBoard();
   $("post").addEventListener("click", writePost);
+  $("verify").addEventListener("click", checkBoard);
+  $("ghuser").addEventListener("keydown", e => { if (e.key === "Enter") checkBoard(); });
+  $("signout").addEventListener("click", () => {
+    me = null; localStorage.removeItem(VERIFIED); $("ghuser").value = ""; renderCredit();
+  });
+  if (me) $("ghuser").value = me.login;
+  renderCredit();
   $("clear").addEventListener("click", () => {
     picks = []; save(); render();
   });
@@ -237,12 +274,12 @@ function renderBoard() {
   if (!f || !f.people || !f.people.length) { $("board").hidden = true; return; }
   $("boardsub").textContent =
     `${f.total} accessibility fixes merged since ${f.since} by ${f.people.length} people.`;
-  $("boardlist").innerHTML = f.people.slice(0, 15).map((p, n) => `<li>
+  $("boardlist").innerHTML = f.people.slice(0, 10).map((p, n) => `<li>
     <span class="rank">${n + 1}</span>
-    <img src="${esc(p.avatar)}&s=60" alt="" loading="lazy">
-    <span>
+    <img src="${esc(p.avatar)}&s=44" alt="" loading="lazy">
+    <span class="stack">
       <a class="who" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.login)}</a>
-      <br><span class="stat">${p.count} fix${p.count === 1 ? "" : "es"} in ${p.projects} project${p.projects === 1 ? "" : "s"}</span>
+      <span class="stat">${p.count} fix${p.count === 1 ? "" : "es"} · ${p.projects} project${p.projects === 1 ? "" : "s"}</span>
     </span>
   </li>`).join("");
 }
@@ -322,16 +359,93 @@ function toggle(url) {
 
 function save() { localStorage.setItem(STORE, JSON.stringify(picks)); }
 
+async function checkBoard() {
+  const login = $("ghuser").value.trim().replace(/^@/, "");
+  if (!login) { $("vstatus").textContent = "Type your GitHub username first."; return; }
+
+  // The weekly data file only holds the top of a 90-day window, so a miss there
+  // is not an answer. Ask GitHub directly, which also covers fixes older than
+  // the window and people outside the top 40.
+  const local = (DATA.fixers?.people || [])
+    .find(p => p.login.toLowerCase() === login.toLowerCase());
+
+  $("verify").disabled = true;
+  $("vstatus").textContent = "Checking GitHub for merged accessibility fixes...";
+
+  const q = `label:accessibility,a11y,"accessibility issue" is:pr is:merged author:${login}`;
+  try {
+    const res = await fetch("https://api.github.com/search/issues?per_page=20&q=" +
+                            encodeURIComponent(q));
+    if (res.status === 403) {
+      $("vstatus").textContent =
+        "GitHub is rate limiting anonymous checks right now. Try again in a minute.";
+      return;
+    }
+    // GitHub answers 422 when the author qualifier names an account it cannot
+    // find, which is a spelling problem, not an outage. Say which.
+    if (res.status === 422) {
+      me = null;
+      localStorage.removeItem(VERIFIED);
+      $("vstatus").textContent =
+        `GitHub has no account called "${login}". Check the spelling and try again.`;
+      renderCredit();
+      return;
+    }
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const count = data.total_count || 0;
+
+    if (!count) {
+      me = null;
+      localStorage.removeItem(VERIFIED);
+      $("vstatus").textContent =
+        `No merged accessibility fixes found for ${login} yet. Ship one and this unlocks. ` +
+        `If you just merged something, GitHub search can take a few minutes to catch up.`;
+      renderCredit();
+      return;
+    }
+
+    const repos = [...new Set((data.items || [])
+      .map(i => i.repository_url.split("/").slice(-2).join("/")))];
+    me = {
+      login,
+      count,
+      repos: repos.slice(0, 5),
+      projects: repos.length,
+      rank: local ? (DATA.fixers.people.indexOf(local) + 1) : null,
+      at: new Date().toISOString().slice(0, 10),
+    };
+    localStorage.setItem(VERIFIED, JSON.stringify(me));
+    renderCredit();
+  } catch (e) {
+    $("vstatus").textContent = "Could not reach GitHub just now. Try again shortly.";
+  } finally {
+    $("verify").disabled = false;
+  }
+}
+
+function renderCredit() {
+  const n = me ? me.count : 0;
+  $("creditactions").hidden = !me;
+  if (!me) $("posttext").hidden = true;
+
+  if (me) {
+    $("vstatus").textContent =
+      `${me.login}: ${me.count} merged accessibility fix${me.count === 1 ? "" : "es"}` +
+      (me.rank ? `, currently number ${me.rank} on the 90 day board.` : ".") +
+      " The post writer is unlocked.";
+  }
+
+  $("tiers").innerHTML = TIERS.map(([need, name]) =>
+    `<span class="tier ${n >= need ? "" : "off"}">${name}</span>`).join("");
+}
+
 function renderMe() {
   const n = picks.length;
   $("mestat").textContent = n
     ? n + " issue" + (n === 1 ? "" : "s") + " on your list."
     : 'Nothing picked yet. Hit "I\'m on it" on any issue to start a list.';
   $("meactions").hidden = n === 0;
-  if (!n) $("posttext").hidden = true;
-
-  $("tiers").innerHTML = TIERS.map(([need, name]) =>
-    `<span class="tier ${n >= need ? "" : "off"}">${name}</span>`).join("");
 
   $("mylist").innerHTML = picks.map(p =>
     `<li><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.repo)}</a> — ${esc(p.title)}</li>`
@@ -339,18 +453,16 @@ function renderMe() {
 }
 
 function writePost() {
-  const areas = [...new Set(picks.flatMap(p => p.areas))].slice(0, 3).join(", ");
-  const repos = [...new Set(picks.map(p => p.repo))];
+  if (!me) return;
+  const next = picks.slice(0, 3);
   const text =
-`I picked up ${picks.length} open accessibility issue${picks.length === 1 ? "" : "s"} in open source this week.
+`I have merged ${me.count} accessibility fix${me.count === 1 ? "" : "es"} into open source projects${me.projects > 1 ? `, across ${me.projects}+ of them` : ""}.
 
-${picks.slice(0, 5).map(p => `• ${p.repo}: ${p.title}\n  ${p.url}`).join("\n")}
+${me.repos.map(r => `• ${r}`).join("\n")}
 
-Areas: ${areas || "accessibility"}.
-
-These are real barriers for people using screen readers, keyboards, and assistive tech. ${repos.length === 1 ? "This project is" : "These projects are"} maintained by volunteers, so a single fix goes a long way.
-
-If you write code and want somewhere useful to start, accessibility issues are a good door in.
+Every one of these was a real barrier for somebody using a screen reader, a keyboard, or other assistive tech. These projects are maintained by volunteers, so a single fix reaches a lot of people.
+${next.length ? `\nNext on my list:\n${next.map(p => `• ${p.repo}: ${p.title}`).join("\n")}\n` : ""}
+If you write code and want somewhere useful to start, open accessibility issues are a good door in. I found these here: ${location.href.split("?")[0]}
 
 #accessibility #a11y #opensource`;
 

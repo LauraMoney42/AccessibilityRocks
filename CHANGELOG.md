@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-14 21:35
+- The LinkedIn post writer now unlocks only for people on the scoreboard. Entering a
+  GitHub username queries the API for merged accessibility PRs, so recognition follows a
+  merge rather than a click. Milestone chips now count merged fixes.
+- Verified against a real contributor (10 merged fixes, rank 6 on the board) and against
+  an account with none, which stays locked
+- Handled GitHub's 422 for unknown usernames separately: it is a spelling problem, not an
+  outage, and the generic error message said the wrong thing
+- Split the panels: "Your shortlist" states plainly that picks are a private bookmark
+  which does not comment on the issue or tell the maintainer anything
+- Scoreboard trimmed to a compact top ten. A side-scrolling version was built and dropped:
+  it would need `tabindex="0"` and an accessible name to stay keyboard-scrollable, and ten
+  rows fit in less space than the scroller did.
+- Files affected: `docs/index.html`, `README.md`
+
 ## 2026-08-14 21:20
 - Audited the dashboard's own accessibility and fixed everything found:
   - Added `main` landmark, a skip link, and a focusable results target

@@ -65,6 +65,7 @@ It would be a bad look otherwise. What was checked and fixed:
 | Contrast | All text at least 4.5:1 in both themes; control borders raised to 4.4:1 for WCAG 1.4.11 |
 | List semantics | `role="list"` where `list-style: none` would otherwise strip it in VoiceOver |
 | Volume | Results page at 100, cutting roughly 900 tab stops to about 300 |
+| Scoreboard | Top ten in a plain grid. A side-scroller was tried and dropped: it needs its own focusable region and accessible name to stay keyboard-usable, and ten rows fit without any of that |
 | Motion | No animation, so nothing to reduce |
 
 Two things were genuinely broken and are now fixed: control borders sat at 1.2:1 against
@@ -88,10 +89,19 @@ the board, and ranking purely on how many projects someone touched lets two driv
 beat twenty-five real ones. Fixes to your own repositories are excluded, since the point
 is helping someone else's users.
 
-The "Your list" panel and its milestones are stored in the visitor's own browser. There
-is no account and no server, so nothing there is verified: it tracks what someone picked,
-not what they merged. "Write my LinkedIn post" drafts a post about their picks and copies
-it, because LinkedIn strips prefilled text from share links.
+**"I'm on it" is a bookmark, nothing more.** It saves the issue to a list in that
+browser's `localStorage`. It does not comment on the issue, notify the maintainer, or
+reserve anything, and the panel says so. To actually claim an issue, comment on it in
+GitHub.
+
+**The LinkedIn post writer is locked until you are on the scoreboard.** Enter a GitHub
+username, and the page asks the API directly for merged pull requests carrying an
+accessibility label. No merges, no post. Picking issues unlocks nothing: shipping does.
+The draft then quotes real numbers, and the milestone chips count merged fixes rather than
+clicks.
+
+The post is copied to the clipboard rather than passed in the share URL, because LinkedIn
+strips prefilled text.
 
 ## Three ways to use it
 
