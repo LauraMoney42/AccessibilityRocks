@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-14 19:48
+- Public sheet now lists independent open source projects only. Four filters run by
+  default: ~110 big-company owners excluded, a recognized open source license required,
+  no archived repos or forks, and at most 3 issues per repo.
+- Added `--include-big-tech`, `--exclude-owners`, `--any-license`, `--min-stars`,
+  and `--per-repo`; `BIG_TECH_OWNERS` is an editable set at the top of the file
+- Added a License column, and Run info now reports how many rows each filter removed
+- Star lookups now fail soft: hitting the anonymous rate limit blanks the cell instead of
+  killing the run. Found by exhausting the 60/hour anonymous budget during testing.
+- Lowered the anonymous star lookup cap from 40 to 25 to leave headroom in that budget
+- Filtered rows are replaced rather than subtracted, so a 300-row request still returns
+  300 rows: currently 196 distinct projects, 45 tagged good first issue
+- Files affected: `track_a11y.py`, `README.md`, `SKILL.md`, `PROJECT_OVERVIEW.md`
+
 ## 2026-08-14 19:28
 - Sign-in is no longer required. Rewrote the transport layer onto urllib against the
   GitHub REST and GraphQL APIs, with `gh` demoted to one of three optional token sources

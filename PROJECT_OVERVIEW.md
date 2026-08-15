@@ -49,7 +49,7 @@ protected folder rather than failing quietly at run time.
 **Public sheet.** With a token, GraphQL returns 100 issues per call with
 `stargazerCount` inline, so ranking by popularity is free. Without one, REST search
 returns no star data, so the tool counts which repos appear most and looks up stars for
-the top 40 only, leaving the rest blank and sorted last. The cap exists because of the
+the top 25 only, leaving the rest blank and sorted last. The cap exists because of the
 60 requests per hour anonymous core limit, and Run info says when it applied.
 
 **Own-repo sheet.** Plain REST search with `user:<owner>`, which needs no token for
