@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-14 22:30
+- Renamed the panel to **Scoreboard** and cut it to the top five
+- Collapsed the ranking explanation into a native `details` disclosure labelled "How this
+  is ranked". Deliberately not a hover tooltip: hover is unreachable by keyboard and
+  touch, which would be a poor look on this particular site.
+- Renamed "Make a Post" to "Share with other volunteers"
+- Two pre-existing accessibility defects found by an audit pass and fixed:
+  - `footer` was nested inside `main`, so it never became a `contentinfo` landmark
+  - a GitHub issue title containing an unbreakable token pushed the page 23px sideways at
+    a 770px viewport, failing WCAG 1.4.10 reflow. Fixed with `overflow-wrap: anywhere` on
+    card titles, verified at 770px: 0px overflow.
+- Audit confirmed no regressions: disclosure reachable at tab stop 11 with a real 3px
+  focus ring, summary contrast 5.98:1 light and 6.68:1 dark, collapsed content correctly
+  out of the tab order, list role and live regions intact
+- Files affected: `docs/index.html`, `README.md`
+
 ## 2026-08-14 22:12
 - Stale-bot comments no longer count as activity. A bot posting "marked as stale" bumps
   `updated_at`, so abandoned issues were reading as fresh: in a 25-issue sample, 5 were

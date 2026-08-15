@@ -67,7 +67,12 @@
     background: var(--card); border: 1px solid var(--line); border-radius: 12px;
     padding: 14px; display: flex; flex-direction: column; gap: 8px;
   }
-  .card h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.35; }
+  .card h3 {
+    margin: 0; font-size: 15px; font-weight: 600; line-height: 1.35;
+    /* Issue titles arrive from GitHub and some carry unbreakable tokens like
+       `**cluster/Chooser**`, which pushed the whole page sideways at 770px. */
+    overflow-wrap: anywhere;
+  }
   .card h3 a { color: inherit; text-decoration: none; }
   .card h3 a:hover { text-decoration: underline; }
   .repo { font-size: 13px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
@@ -111,6 +116,21 @@
   .board .who { font-weight: 600; text-decoration: none; color: inherit; }
   .board .who:hover { text-decoration: underline; }
   .board .stat { color: var(--muted); font-size: 11px; }
+  /* The ranking explanation is long but rarely needed, so it collapses. A native
+     <details> keeps it reachable by keyboard and touch, which a :hover tooltip or a
+     title attribute would not. */
+  .why { margin: 2px 0 10px; }
+  .why summary {
+    color: var(--muted); font-size: 12px; cursor: pointer;
+    display: list-item; width: fit-content;
+  }
+  /* Same ring as the global rule, restated so the marker box is included. */
+  .why summary:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  .why p { margin: 6px 0 0; }
   a { color: var(--accent); }
 </style>
 </head>
@@ -127,18 +147,21 @@
 
 <main class="wrap">
   <div class="panel" id="board">
-    <h2>Who has been fixing these</h2>
+    <h2>Scoreboard</h2>
     <p class="sub" id="boardsub"></p>
     <ol class="board" id="boardlist" role="list" aria-label="Top outside contributors"></ol>
-    <p class="sub small">Merged pull requests carrying an accessibility label, from the
-    GitHub API. People who own or belong to the repo are dropped, each owner counts at
-    most three times, and repos under a year old are left out. Maintainers keeping their
-    own projects accessible have their own section on the
-    <a href="https://github.com/LauraMoney42/AccessibilityRocks/blob/main/CONTRIBUTORS.md"
-       target="_blank" rel="noopener">contributors wall</a>, along with everyone else.</p>
+    <details class="why">
+      <summary>How this is ranked</summary>
+      <p class="sub small">Merged pull requests carrying an accessibility label, from the
+      GitHub API. People who own or belong to the repo are dropped, each owner counts at
+      most three times, and repos under a year old are left out. Maintainers keeping their
+      own projects accessible have their own section on the
+      <a href="https://github.com/LauraMoney42/AccessibilityRocks/blob/main/CONTRIBUTORS.md"
+         target="_blank" rel="noopener">contributors wall</a>, along with everyone else.</p>
+    </details>
 
     <div class="actions">
-      <button class="primary" id="post">Make a Post</button>
+      <button class="primary" id="post">Share with other volunteers</button>
     </div>
     <div class="actions" id="postbox" hidden>
       <label class="check" for="ghuser">Your GitHub username</label>
@@ -180,11 +203,12 @@
 
   <p class="counts" id="empty" hidden>Nothing matches those filters.</p>
 
-  <footer>
+</main>
+
+  <footer class="wrap">
     <p>Data refreshes weekly from the GitHub API. Star counts and labels come straight
     from each project. Your list is stored only in this browser: no account, no server.</p>
   </footer>
-</main>
 
 <script>
 let DATA = { issues: [], areas: [], generated: "" };
@@ -316,7 +340,7 @@ function renderBoard() {
   // the behaviour it exists to grow. Maintainers keeping their own projects
   // accessible are on the contributors wall, with their own section.
   const outside = f.people.filter(p => p.role !== "maintainer");
-  $("boardlist").innerHTML = outside.slice(0, 10).map((p, n) => entry(p, n)).join("");
+  $("boardlist").innerHTML = outside.slice(0, 5).map((p, n) => entry(p, n)).join("");
 }
 
 function entry(p, n) {

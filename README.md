@@ -64,7 +64,9 @@ It would be a bad look otherwise. What was checked and fixed:
 | Contrast | All text at least 4.5:1 in both themes; control borders raised to 4.4:1 for WCAG 1.4.11 |
 | List semantics | `role="list"` where `list-style: none` would otherwise strip it in VoiceOver |
 | Volume | Results page at 100, cutting roughly 900 tab stops to about 300 |
-| Scoreboard | Top ten in a plain grid. A side-scroller was tried and dropped: it needs its own focusable region and accessible name to stay keyboard-usable, and ten rows fit without any of that |
+| Scoreboard | Top five in a plain grid, with the ranking rules behind a native `details` disclosure rather than a hover tooltip, since hover is unreachable by keyboard and touch |
+| Landmarks, again | `footer` was nested inside `main`, so it never became a `contentinfo` landmark. Found by an audit pass, now a direct child of `body` |
+| Reflow | Issue titles from GitHub can carry unbreakable tokens, which pushed the page 23px sideways at a 770px viewport and failed WCAG 1.4.10. Fixed with `overflow-wrap: anywhere` |
 | Motion | No animation, so nothing to reduce |
 
 Two things were genuinely broken and are now fixed: control borders sat at 1.2:1 against
