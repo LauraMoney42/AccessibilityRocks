@@ -70,7 +70,7 @@ On Linux, add this to `crontab -e` instead (last field is the day, 0 for Sunday)
 --global-limit N      how many public issues to pull, max 1000, default 300
 --no-global           skip the public sheet, only scan your repos
 --per-repo N          max issues per repo on the public sheet, default 3, 0 for no cap
---include-big-tech    put Microsoft, Google, Meta and friends back in
+--exclude-big-tech    leave big-company issues out of the file entirely
 --exclude-owners a,b  leave out more owners
 --any-license         include repos with no recognizable open source license
 --min-stars N         ignore public repos below this star count
@@ -78,14 +78,20 @@ On Linux, add this to `crontab -e` instead (last field is the day, 0 for Sunday)
 --out PATH            where to write the .xlsx
 ```
 
-## Who gets filtered out
+## Big tech is a filter, not a decision
 
-The public sheet is for projects that actually need volunteer help, so by default it
-drops:
+Column A on the public sheet says `independent` or `big company`, and the file opens with
+the filter already set to `independent`. Microsoft, Google, Meta, Apple, Amazon, Adobe,
+Oracle and about 110 other owners are in the file, just hidden and shaded grey.
 
-- **Big-company owners.** About 110 of them: Microsoft, Google, Meta, Apple, Amazon,
-  Adobe, Oracle, and so on. They have paid accessibility teams. The list lives at the top
-  of `track_a11y.py` under `BIG_TECH_OWNERS`, and it is meant to be edited.
+To bring them back, clear the filter on column A (in Excel: click the arrow on column A,
+tick `big company`, or Data > Clear). To make it permanent, pass `--exclude-big-tech` and
+they never get written at all.
+
+The owner list lives at the top of `track_a11y.py` under `BIG_TECH_OWNERS` and is meant
+to be edited. `--exclude-owners a,b` adds more for a single run.
+
+The other three rules do drop rows, because they are not judgment calls:
 - **Repos with no recognizable open source license.** Source-available and unlicensed
   code is not the same as open source. Pass `--any-license` to keep them.
 - **Archived repos and forks.** Nothing to contribute to.

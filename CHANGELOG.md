@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-14 20:19
+- Big tech is now a spreadsheet filter instead of a fetch-time decision. Column A tags
+  every public row `independent` or `big company`; the file opens filtered to
+  `independent` with those rows hidden and shaded grey, so including them is one click.
+- `--include-big-tech` replaced by `--exclude-big-tech`, which keeps them out of the file
+  entirely for anyone who never wants to see them
+- The row budget counts independent rows only, so hidden rows do not eat the limit:
+  a 250 request returned 250 independent plus 19 big company
+- Both `row_dimensions.hidden` and an `auto_filter` criterion are set, since Excel honours
+  the filter and other readers only honour hidden rows
+- Files affected: `track_a11y.py`, `README.md`, `SKILL.md`, `PROJECT_OVERVIEW.md`
+
 ## 2026-08-14 19:48
 - Public sheet now lists independent open source projects only. Four filters run by
   default: ~110 big-company owners excluded, a recognized open source license required,

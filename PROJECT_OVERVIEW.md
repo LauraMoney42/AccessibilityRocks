@@ -63,12 +63,18 @@ by default:
 
 | Rule | Reason |
 | --- | --- |
-| ~110 big-company owners dropped | They have paid accessibility teams and the budget to fix their own bugs |
+| ~110 big-company owners hidden, not dropped | They have paid accessibility teams, but whether to help them anyway is the reader's call, so it belongs in the spreadsheet rather than in the fetch |
 | Recognized open source license required | Source-available is not open source; `NOASSERTION` means GitHub could not identify it |
 | No archived repos, no forks | Nothing to contribute to |
 | At most 3 issues per repo | One busy backlog would otherwise fill the sheet; a 300-row pull covers ~200 projects |
 
-`BIG_TECH_OWNERS` sits at the top of the file as an editable set, with `--include-big-tech`
+Big-company rows are written with a grey fill, tagged `big company` in column A, and
+hidden via `row_dimensions[i].hidden` plus an `auto_filter` criterion set to
+`independent`. Both are needed: Excel honours the filter, and hiding the rows keeps the
+view correct in readers that ignore stored filter definitions. `limit` counts independent
+rows only, so tagged rows never eat the budget.
+
+`BIG_TECH_OWNERS` sits at the top of the file as an editable set, with `--exclude-big-tech`
 and `--exclude-owners` as the escape hatches. Run info reports how many rows each rule
 removed, so the filtering is visible rather than silent.
 

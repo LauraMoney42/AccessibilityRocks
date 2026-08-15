@@ -7,7 +7,7 @@ description: Build a spreadsheet of accessibility-labeled GitHub issues, both ac
 
 Produces `accessibility-issues.xlsx` with four sheets:
 
-1. **All public repos** - open accessibility issues in independent open source projects, most-starred first, with a "good first issue" column. Big-company repos, unlicensed repos, archived repos, and forks are excluded by default.
+1. **All public repos** - open accessibility issues, most-starred first, with a "good first issue" column. Column A tags each row `independent` or `big company`, and the sheet opens filtered to `independent`. Big-company rows are present but hidden, so the reader can unhide them without re-running anything. Unlicensed repos, archived repos, and forks are left out.
 2. **My repos** - accessibility issues in the person's own repos, open and closed
 3. **My repo rollup** - per-repo counts, so empty repos are visible too
 4. **Run info** - what was searched and when
@@ -40,7 +40,7 @@ works immediately for anyone. Do not ask the user to authenticate before trying.
 | `--owner a,b` | scan several accounts into one workbook |
 | `--labels x,y` | match different label spellings |
 | `--per-repo N` | max issues per repo on the public sheet, default 3 |
-| `--include-big-tech` | put Microsoft, Google, Meta and friends back in |
+| `--exclude-big-tech` | leave big-company issues out of the file entirely |
 | `--exclude-owners a,b` | filter out more owners |
 | `--min-stars N` | ignore repos below a star count |
 | `--out PATH` | write somewhere else |
@@ -66,9 +66,10 @@ up if the user asks for recurring updates. It must not live in `~/Documents`,
 
 - "Most downloads" is not a thing GitHub exposes for repos. Stars are used as the
   popularity ranking, and the sheet says so.
-- The default is to skip repos owned by large companies, on the reasoning that they have
-  paid accessibility teams. The owner list is at the top of `track_a11y.py` and is meant
-  to be edited. `--include-big-tech` turns the filter off.
+- Big-company repos are hidden behind a spreadsheet filter rather than dropped, on the
+  reasoning that those companies have paid accessibility teams but the reader may still
+  want the option. If they ask to see them, tell them to clear the filter on column A
+  rather than re-running the script. The owner list is at the top of `track_a11y.py`.
 - The public sample is the most-commented open accessibility issues, then sorted by
   stars. It is a sample of roughly 17,000 open issues, not the complete set.
 - Requires Python 3.9+ and `openpyxl` (`python3 -m pip install --user openpyxl`).

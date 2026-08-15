@@ -209,23 +209,27 @@ query($q: String!, $after: String) {
 """
 
 
-def search_global(labels, limit, skip_owners, want_license, min_stars, per_repo):
+def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, per_repo):
     """Open accessibility issues across all public repos, with repo star counts.
 
     With a token this is GraphQL, which returns stars, license, and archived
     status inline: 100 issues per call. Without one it falls back to REST plus a
     capped set of star lookups, because the anonymous core limit is 60 an hour.
 
-    Filtered results are replaced by more results rather than leaving the sheet
-    short, so the pull continues until it has `limit` keepers or runs out.
+    Big-company rows are tagged rather than dropped, so the spreadsheet can hide
+    them behind a filter the reader can switch off. `limit` counts independent
+    rows only, so tagging them does not eat the budget.
     """
     base = f"{label_query(labels)} is:issue is:open is:public"
     dropped = {"big tech": 0, "no clear license": 0, "archived or fork": 0,
                "below star floor": 0, "extra issues from a repo already listed": 0}
     per_repo_count = {}
 
+    def is_big(repo_full):
+        return repo_full.split("/")[0].lower() in big_owners
+
     def keep(repo_full, license_id, archived, fork, stars):
-        if repo_full.split("/")[0].lower() in skip_owners:
+        if drop_big and is_big(repo_full):
             dropped["big tech"] += 1
             return False
         if archived or fork:
@@ -246,10 +250,10 @@ def search_global(labels, limit, skip_owners, want_license, min_stars, per_repo)
         return True
 
     if TOKEN:
-        rows, cursor = [], None
+        rows, cursor, independent = [], None, 0
         # Most-commented first: a sample out of ~17k should favour issues people
         # actually care about rather than whatever sorts first by default.
-        while len(rows) < limit:
+        while independent < limit:
             data = graphql(GRAPHQL_SEARCH, {"q": base + " sort:comments-desc", "after": cursor})
             if not data:
                 break
@@ -263,8 +267,11 @@ def search_global(labels, limit, skip_owners, want_license, min_stars, per_repo)
                             repo.get("isArchived"), repo.get("isFork"),
                             repo["stargazerCount"]):
                     continue
+                big = is_big(repo["nameWithOwner"])
+                independent += 0 if big else 1
                 rows.append({
                     "repo": repo["nameWithOwner"],
+                    "big": big,
                     "stars": repo["stargazerCount"],
                     "license": (repo.get("licenseInfo") or {}).get("spdxId") or "none",
                     "language": (repo.get("primaryLanguage") or {}).get("name") or "-",
@@ -279,7 +286,6 @@ def search_global(labels, limit, skip_owners, want_license, min_stars, per_repo)
             if not block["pageInfo"]["hasNextPage"]:
                 break
             cursor = block["pageInfo"]["endCursor"]
-        rows = rows[:limit]
         capped = False
     else:
         # REST search carries no license or archived flag, so anonymous runs can
@@ -290,8 +296,11 @@ def search_global(labels, limit, skip_owners, want_license, min_stars, per_repo)
             full = "/".join(i["repository_url"].split("/")[-2:])
             if not keep(full, None, False, False, None):
                 continue
+            if len([r for r in rows if not r["big"]]) >= limit:
+                break
             rows.append({
                 "repo": full,
+                "big": is_big(full),
                 "stars": None,
                 "license": "?",
                 "language": "-",
@@ -303,7 +312,6 @@ def search_global(labels, limit, skip_owners, want_license, min_stars, per_repo)
                 "createdAt": i["created_at"],
                 "updatedAt": i["updated_at"],
             })
-        rows = rows[:limit]
 
         # Star counts cost one call each, so only the repos with the most hits
         # get looked up. The rest sort to the bottom with a blank star cell.
@@ -328,7 +336,9 @@ def search_global(labels, limit, skip_owners, want_license, min_stars, per_repo)
             dropped["below star floor"] += before - len(rows)
         capped = len(by_hits) > ANON_STAR_LOOKUPS or RATE_LIMITED
 
-    rows.sort(key=lambda r: (-(r["stars"] if r["stars"] is not None else -1), -r["comments"]))
+    rows.sort(key=lambda r: (r["big"],
+                            -(r["stars"] if r["stars"] is not None else -1),
+                            -r["comments"]))
     return rows, capped, {k: v for k, v in dropped.items() if v}
 
 
@@ -408,6 +418,7 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
     header_font = Font(color="FFFFFF", bold=True)
     open_fill = PatternFill("solid", fgColor="FFF2CC")    # amber: needs attention
     closed_fill = PatternFill("solid", fgColor="E2EFDA")  # green: done
+    big_fill = PatternFill("solid", fgColor="EDEDED")     # grey: big company, hidden by default
     link_font = Font(color="0563C1", underline="single")
 
     def style(ws, widths):
@@ -432,13 +443,15 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
     # --- Sheet 1: all public repos, most popular first ---------------------
     ws = wb.active
     ws.title = "All public repos"
-    ws.append(["Repo", "Stars", "License", "Language", "#", "Title", "Labels",
+    ws.append(["Owner", "Repo", "Stars", "License", "Language", "#", "Title", "Labels",
                "Comments", "Good first issue", "Created", "Updated", "Age (days)", "Link"])
+    big_rows = []
     for r in global_rows:
         created = parse_ts(r["createdAt"])
         gfi = any("good first issue" in l.lower() or "good-first-issue" in l.lower()
                   or "help wanted" in l.lower() for l in r["labels"])
         ws.append([
+            "big company" if r.get("big") else "independent",
             r["repo"],
             r["stars"] if r["stars"] is not None else "",
             r.get("license", "?"),
@@ -453,8 +466,20 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
             (now - created).days if created else "",
             r["url"],
         ])
-        link_cell(ws, ws.max_row, 13, r["url"])
-    style(ws, [34, 8, 12, 12, 7, 56, 28, 10, 16, 12, 12, 11, 8])
+        link_cell(ws, ws.max_row, 14, r["url"])
+        if r.get("big"):
+            big_rows.append(ws.max_row)
+            for c in range(1, 15):
+                ws.cell(row=ws.max_row, column=c).fill = big_fill
+    style(ws, [13, 32, 8, 12, 12, 7, 54, 26, 10, 16, 12, 12, 11, 8])
+
+    # Column A opens filtered to "independent". Clearing the filter in Excel (or
+    # unhiding the rows) brings the big-company issues back, which is the point:
+    # the decision lives in the spreadsheet, not in how the file was generated.
+    if big_rows:
+        ws.auto_filter.add_filter_column(0, ["independent"], blank=False)
+        for row_idx in big_rows:
+            ws.row_dimensions[row_idx].hidden = True
 
     # --- Sheet 2: your own repos ------------------------------------------
     ws2 = wb.create_sheet("My repos")
@@ -515,7 +540,10 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
         ("Owners scanned", ", ".join(owners)),
         ("Labels matched", ", ".join(labels)),
         ("Signed in", "yes (private repos included)" if TOKEN else "no (public data only)"),
-        ("Public issues listed", len(global_rows)),
+        ("Public issues listed", f"{sum(1 for r in global_rows if not r.get('big'))} independent"
+                                 + (f", {sum(1 for r in global_rows if r.get('big'))} big company "
+                                    f"(hidden by the column A filter)"
+                                    if any(r.get('big') for r in global_rows) else "")),
         ("Public sample", "most-commented open accessibility issues, then sorted by stars"),
         ("Public filter", filter_note),
         ("Popularity metric", "repo stars (GitHub does not expose download counts)"),
@@ -555,8 +583,9 @@ def main():
                     help="how many public issues to pull (max 1000, default 300)")
     ap.add_argument("--no-global", action="store_true",
                     help="skip the all-public-repos sheet")
-    ap.add_argument("--include-big-tech", action="store_true",
-                    help="keep Microsoft, Google, Meta and friends in the public sheet")
+    ap.add_argument("--exclude-big-tech", action="store_true",
+                    help="leave big-company issues out of the file entirely, rather than "
+                         "including them behind the spreadsheet filter")
     ap.add_argument("--exclude-owners", default="",
                     help="extra owners to leave out of the public sheet")
     ap.add_argument("--any-license", action="store_true",
@@ -586,12 +615,15 @@ def main():
 
     print(f"Scanning {', '.join(owners)}" + ("" if TOKEN else " (not signed in, public data only)"))
 
-    skip_owners = set() if args.include_big_tech else set(BIG_TECH_OWNERS)
-    skip_owners |= {o.strip().lower() for o in args.exclude_owners.split(",") if o.strip()}
+    big_owners = set(BIG_TECH_OWNERS)
+    big_owners |= {o.strip().lower() for o in args.exclude_owners.split(",") if o.strip()}
 
     parts = []
-    if skip_owners:
-        parts.append(f"{len(skip_owners)} big-company owners excluded")
+    if args.exclude_big_tech:
+        parts.append(f"{len(big_owners)} big-company owners left out of the file")
+    else:
+        parts.append(f"{len(big_owners)} big-company owners included but hidden "
+                     f"behind the column A filter")
     if not args.any_license:
         parts.append("open source license required where known")
     parts.append("no archived repos or forks")
@@ -604,9 +636,12 @@ def main():
     global_rows, capped, dropped = ([], False, {})
     if not args.no_global:
         global_rows, capped, dropped = search_global(
-            labels, min(args.global_limit, 1000), skip_owners,
+            labels, min(args.global_limit, 1000), big_owners, args.exclude_big_tech,
             not args.any_license, args.min_stars, args.per_repo)
-        print(f"  {len(global_rows)} open accessibility issues in independent public repos")
+        indie = sum(1 for r in global_rows if not r["big"])
+        extra = len(global_rows) - indie
+        print(f"  {indie} open accessibility issues in independent public repos"
+              + (f", plus {extra} big-company ones hidden behind the filter" if extra else ""))
 
     mine = search_owner_issues(owners, labels)
     repos = fetch_owner_repos(owners)
