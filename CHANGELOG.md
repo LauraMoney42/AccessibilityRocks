@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-14 21:50
+- Better self-fix detection, which was the actual question: every search result carries
+  `author_association`, so OWNER and MEMBER are now dropped outright. Comparing logins
+  only caught `alice/project`; this also catches `alice-labs/project`, an account owning
+  the org that owns the repo. 68 of 300 merged PRs were insider work.
+- `author_association` alone does not catch farming: the farmed PRs were all CONTRIBUTOR,
+  the same value WebKit and mozilla contributions carry. It answers "is this their own
+  repo", not "is this real".
+- Replaced the 50-star floor with a repo age floor of one year. Measured: farmed repos
+  were 39 to 84 days old, real ones 1,200 to 5,600. Age does not punish small projects
+  that have been quietly maintained for years, which is exactly who this project is for.
+  Tailormap (3 stars, years old) is back on the board; the hackathon repos are not.
+- Contributor role now shown on the board and the wall, so maintainers are visible as
+  maintainers rather than quietly removed
+- Files affected: `track_a11y.py`, `docs/index.html`, `CONTRIBUTORS.md`, `README.md`
+
 ## 2026-08-14 21:41
 - Reworked the scoreboard ranking after the top of the board turned out to be one
   account's two small repos (1 and 22 stars) with a crowd merging into them:

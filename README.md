@@ -83,34 +83,33 @@ That number is verifiable: a merged pull request carrying an accessibility label
 the GitHub API will confirm, which is why the board uses it instead of anything
 self-reported.
 
-Three rules keep the ordering honest, and each one exists because the version before it
+Four rules keep the ordering honest, and each one exists because the version before it
 was gamed by accident:
 
-1. **Fixes to your own repos do not count.** The board is about helping someone else's
-   users.
-2. **Each owner counts at most three times.** Not each repo: splitting a backlog across
-   two repos under one account was the loophole that produced a bogus number one.
-3. **Repos under 50 stars are left out.** A brand new repo with a crowd of contributors
-   merging into it is a hackathon, not the open source commons.
+1. **GitHub tells us whether the author owns or belongs to the repo, and both are
+   dropped.** Every search result carries an `author_association`. Comparing names only
+   catches `alice/project`; this also catches `alice-labs/project`, which is the same
+   thing wearing a hat.
+2. **Distinct owners are counted, not repos.** Splitting a backlog across two repos under
+   one account was the loophole that produced a bogus number one.
+3. **Each owner counts at most three times.** Helping several projects beats grinding one
+   backlog.
+4. **Repos younger than a year are left out.** This replaced a star floor. The repos being
+   farmed were 39 to 84 days old while the real projects were 1,200 to 5,600, and unlike a
+   star count, age does not punish a small project that has been quietly maintained for
+   years.
 
-Before those rules the entire top of the board was one account's two new repos, at 1 and
-22 stars. After them it is Mozilla, WebKit, indico, scaleway, Orange-OpenSource and
-headlamp. `--scoreboard-min-stars` changes the floor, which needs a token to apply since
-it costs a star lookup per repo.
+Before those rules the top of the board was one account's two repos, at 1 and 22 stars,
+both under three months old. After them it is Orange-OpenSource, indico, WebKit, headlamp,
+scaleway, mozilla and Tailormap.
 
-Everyone who merges a fix also lands on [CONTRIBUTORS.md](CONTRIBUTORS.md), the
-contributors wall, regenerated every Monday. That is a real page in a real repo: linkable,
-indexed, and worth more than a counter only this site recognizes. Two merged pull requests
-also earns GitHub's own Pull Shark achievement, which lands on the contributor's profile.
+One thing the rules deliberately do not do is hide maintainers. Someone with write access
+fixing accessibility in the project they maintain is doing real work, so they stay on the
+board with their role shown next to their name. You can see who is an outside contributor
+and who is a maintainer, and judge for yourself.
 
-**Make a Post** sits under the scoreboard. It asks for a GitHub username, checks the API
-for merged pull requests carrying an accessibility label, and drafts a LinkedIn post from
-the real numbers: "Contribute to AccessibilityRocks with me", what they fixed, and a link
-to the issue list. No merged fixes means no post, since the text quotes counts that have
-to be true.
-
-The draft is copied to the clipboard rather than passed in the share URL, because LinkedIn
-strips prefilled text from share links.
+`--scoreboard-min-age-days` and `--scoreboard-min-stars` change the thresholds. Both need
+a token, since they cost one metadata lookup per repo.
 
 ## Three ways to use it
 
