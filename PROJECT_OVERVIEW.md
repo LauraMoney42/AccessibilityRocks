@@ -1,6 +1,6 @@
 # a11y-tracker
 
-Polls the GitHub API on a schedule for every issue in one or more owners' repos that
+Polls the GitHub API weekly for every issue in one or more owners' repos that
 carries an accessibility-style label, and writes them to an Excel workbook.
 
 Built for personal use first, then generalized so any repo owner can clone it, run
@@ -20,12 +20,12 @@ install into a protected folder rather than failing quietly at run time.
 | File | Purpose |
 | --- | --- |
 | `track_a11y.py` | The whole tracker: queries GitHub, builds the workbook |
-| `install.sh` | Interactive setup: deps, username, hour, launchd job, test run |
+| `install.sh` | Interactive setup: deps, username, day, time, launchd job, test run |
 | `uninstall.sh` | Removes the launchd job, leaves data alone |
 | `run.sh` | launchd wrapper (fixes PATH, appends to `a11y-tracker.log`) |
 | `README.md` | Public-facing docs for anyone who clones this |
 | `accessibility-issues.xlsx` | The output, overwritten on every run |
-| `~/Library/LaunchAgents/com.a11ytracker.daily.plist` | The schedule |
+| `~/Library/LaunchAgents/com.a11ytracker.weekly.plist` | The schedule |
 
 ## How it works
 
@@ -59,4 +59,4 @@ and private repos the user can see are covered automatically.
 ## Rate limits
 
 A full personal run costs about 46 REST calls against a 5000/hour limit, well under 1%
-of the budget for a daily schedule.
+of the budget, and the weekly schedule uses it once every seven days.

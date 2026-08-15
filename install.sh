@@ -1,17 +1,17 @@
 #!/bin/bash
-# Installs the accessibility tracker as a daily background job (macOS launchd).
+# Installs the accessibility tracker as a weekly background job (macOS launchd).
 # Safe to re-run: it replaces any previous install of the same job.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LABEL="com.a11ytracker.daily"
+LABEL="com.a11ytracker.weekly"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 UID_NUM="$(id -u)"
 
 if [[ "$(uname)" != "Darwin" ]]; then
   echo "This installer is macOS only."
   echo "On Linux, add this line to 'crontab -e' instead:"
-  echo "  0 9 * * * $DIR/run.sh"
+  echo "  0 9 * * 1 $DIR/run.sh"
   exit 1
 fi
 
@@ -51,10 +51,31 @@ if [[ -z "$OWNER" ]]; then
   exit 1
 fi
 
-read -r -p "Run daily at what hour, 0-23 [9]: " HOUR
-HOUR="${HOUR:-9}"
-if ! [[ "$HOUR" =~ ^[0-9]{1,2}$ ]] || (( HOUR > 23 )); then
-  echo "Hour must be a number from 0 to 23."
+read -r -p "Which day of the week? [Monday]: " DAY_IN
+DAY_IN="${DAY_IN:-monday}"
+# launchd numbers weekdays Sunday=0 through Saturday=6. Accept a name, an
+# abbreviation, or the number itself.
+case "$(echo "$DAY_IN" | tr '[:upper:]' '[:lower:]' | cut -c1-3)" in
+  sun|0) WEEKDAY=0; DAY_NAME="Sunday" ;;
+  mon|1) WEEKDAY=1; DAY_NAME="Monday" ;;
+  tue|2) WEEKDAY=2; DAY_NAME="Tuesday" ;;
+  wed|3) WEEKDAY=3; DAY_NAME="Wednesday" ;;
+  thu|4) WEEKDAY=4; DAY_NAME="Thursday" ;;
+  fri|5) WEEKDAY=5; DAY_NAME="Friday" ;;
+  sat|6) WEEKDAY=6; DAY_NAME="Saturday" ;;
+  *) echo "Not a day of the week: $DAY_IN"; exit 1 ;;
+esac
+
+read -r -p "What time, 24-hour HH:MM [09:00]: " TIME_IN
+TIME_IN="${TIME_IN:-09:00}"
+if ! [[ "$TIME_IN" =~ ^([0-9]{1,2}):?([0-9]{2})?$ ]]; then
+  echo "Time must look like 09:00 or 14:30."
+  exit 1
+fi
+HOUR=$((10#${BASH_REMATCH[1]}))
+MINUTE=$((10#${BASH_REMATCH[2]:-0}))
+if (( HOUR > 23 )) || (( MINUTE > 59 )); then
+  echo "Time must be between 00:00 and 23:59."
   exit 1
 fi
 
@@ -76,13 +97,15 @@ cat > "$PLIST" <<PLIST_EOF
         <string>$OWNER</string>
     </array>
 
-    <!-- If the Mac is asleep at this hour, launchd runs the job on wake. -->
+    <!-- Weekly. If the Mac is asleep at this time, launchd runs the job on wake. -->
     <key>StartCalendarInterval</key>
     <dict>
+        <key>Weekday</key>
+        <integer>$WEEKDAY</integer>
         <key>Hour</key>
         <integer>$HOUR</integer>
         <key>Minute</key>
-        <integer>0</integer>
+        <integer>$MINUTE</integer>
     </dict>
 
     <key>RunAtLoad</key>
@@ -101,18 +124,25 @@ chmod +x "$DIR/run.sh" "$DIR/track_a11y.py"
 launchctl bootout "gui/$UID_NUM/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$UID_NUM" "$PLIST"
 
-# --- 5. Prove it works now rather than at 9am tomorrow --------------------
+# --- 5. Prove it works now rather than next week --------------------------
 echo "Running once to verify..."
 launchctl kickstart -p "gui/$UID_NUM/$LABEL" >/dev/null
-for _ in $(seq 1 30); do
-  if [[ -s "$DIR/a11y-tracker.log" ]]; then break; fi
+
+# Wait for the job to finish, then read its exit code. Waiting on the log file
+# instead would return immediately on a re-install, since the log already exists.
+# launchd reports "(never exited)" until the run completes, so require a number.
+EXIT_CODE=""
+for _ in $(seq 1 90); do
+  INFO="$(launchctl print "gui/$UID_NUM/$LABEL" 2>/dev/null || true)"
+  if grep -q "state = not running" <<<"$INFO"; then
+    EXIT_CODE="$(awk -F'= ' '/last exit code/ {print $2}' <<<"$INFO" | tr -d ' ')"
+    [[ "$EXIT_CODE" =~ ^[0-9]+$ ]] && break
+  fi
   sleep 1
 done
-
-EXIT_CODE="$(launchctl print "gui/$UID_NUM/$LABEL" 2>/dev/null | awk '/last exit code/ {print $NF}')"
 if [[ "$EXIT_CODE" == "0" ]]; then
   echo
-  echo "Installed. Tracking '$OWNER' every day at $HOUR:00."
+  printf "Installed. Tracking '%s' every %s at %02d:%02d.\n" "$OWNER" "$DAY_NAME" "$HOUR" "$MINUTE"
   tail -1 "$DIR/a11y-tracker.log"
   echo "Spreadsheet: $DIR/accessibility-issues.xlsx"
   echo "To remove:   $DIR/uninstall.sh"

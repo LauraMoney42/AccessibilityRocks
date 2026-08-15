@@ -1,6 +1,6 @@
 # a11y-tracker
 
-Every accessibility issue across your GitHub repos, in one spreadsheet, updated daily.
+Every accessibility issue across your GitHub repos, in one spreadsheet, updated weekly.
 
 Point it at a username or an org. It searches every repo you own for issues labeled
 `accessibility`, `a11y`, `accessibility-issue`, or `accessibility issue`, and writes them
@@ -14,9 +14,14 @@ cd ~/a11y-tracker
 ./install.sh
 ```
 
-The installer asks for a GitHub username (it offers your own as the default) and an hour
-to run, then sets up a daily background job and does one test run so you see results
-immediately.
+The installer asks three questions:
+
+1. GitHub username or org (your own gh login is the default)
+2. Day of the week (Monday by default, and it takes `friday`, `fri`, or `5`)
+3. Time in 24-hour `HH:MM` (09:00 by default)
+
+Then it sets up the weekly background job and does one test run so you see results
+immediately instead of waiting a week.
 
 To run it once without scheduling anything:
 
@@ -60,13 +65,17 @@ python3 track_a11y.py --owner your-name,your-org
 ## Scheduling
 
 `install.sh` writes a launchd agent at
-`~/Library/LaunchAgents/com.a11ytracker.daily.plist`. To change the time, re-run
-`./install.sh`. To stop it, run `./uninstall.sh`.
+`~/Library/LaunchAgents/com.a11ytracker.weekly.plist`. To change the day or time, just
+re-run `./install.sh`. To stop it, run `./uninstall.sh`.
 
-On Linux, skip the installer and add this to `crontab -e`:
+If your Mac is asleep at the scheduled moment, launchd runs the job when it next wakes,
+so a closed laptop on Monday morning does not mean a skipped week.
+
+On Linux, skip the installer and add this to `crontab -e` (the last field is the day,
+0 for Sunday through 6 for Saturday):
 
 ```
-0 9 * * * /path/to/a11y-tracker/run.sh --owner your-username
+30 14 * * 5 /path/to/a11y-tracker/run.sh --owner your-username
 ```
 
 ## macOS gotcha
