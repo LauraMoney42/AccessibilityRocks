@@ -1,68 +1,79 @@
 # a11y-tracker
 
-Polls the GitHub API weekly for every issue in one or more owners' repos that
-carries an accessibility-style label, and writes them to an Excel workbook.
+Builds a spreadsheet of accessibility-labeled GitHub issues: the open ones across all
+public repos ranked by repo popularity, plus the ones in a given account's own repos.
 
-Built for personal use first, then generalized so any repo owner can clone it, run
-`./install.sh`, and get the same thing for their own account. `README.md` is the
-front door for those users; this file is the internal design note.
+Started as a personal weekly job, then generalized twice: once so any repo owner could
+install it, and again so a friend could use it with no sign-in at all. `README.md` is the
+front door for those users, `SKILL.md` is the front door for their AI assistants, and
+this file is the internal design note.
 
-## Why it lives at `~/a11y-tracker`
+## The auth decision, and why it changed
+
+The first version shelled out to `gh` for every call, which made a GitHub login a hard
+prerequisite. Setting that up was the single worst part of the experience: browser flow,
+one-time code, plus gh's own git-credential questions.
+
+GitHub's REST search API answers unauthenticated requests (10 per minute), and the core
+API allows 60 requests an hour anonymously. That covers everything except private repos.
+So `gh` was demoted from the transport layer to one of three optional token sources:
+
+```
+GH_TOKEN / GITHUB_TOKEN  ->  `gh auth token`  ->  none (anonymous)
+```
+
+Everything now goes through one `request()` helper over urllib. A token changes three
+things and nothing else: private repos appear, GraphQL becomes available, and the rate
+limit stops mattering.
+
+## Why lives at `~/a11y-tracker`
 
 macOS TCC blocks launchd background agents from reading or writing `~/Documents` unless
-Full Disk Access is granted manually. The real files sit in the home folder (unprotected)
-and `~/Documents/GIT/a11y-tracker` is a symlink pointing at them, so the project is still
-findable where the rest of the work lives. `install.sh` checks for this and refuses to
-install into a protected folder rather than failing quietly at run time.
+Full Disk Access is granted manually. The real files sit in the home folder and
+`~/Documents/GIT/a11y-tracker` is a symlink. `install.sh` refuses to install into a
+protected folder rather than failing quietly at run time.
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
 | `track_a11y.py` | The whole tracker: queries GitHub, builds the workbook |
-| `install.sh` | Interactive setup: deps, username, day, time, launchd job, test run |
+| `SKILL.md` | Claude Code skill definition, so the repo can be cloned into `~/.claude/skills/` |
+| `install.sh` | Optional weekly scheduling: username, day, time, launchd job, test run |
 | `uninstall.sh` | Removes the launchd job, leaves data alone |
 | `run.sh` | launchd wrapper (fixes PATH, appends to `a11y-tracker.log`) |
-| `README.md` | Public-facing docs for anyone who clones this |
-| `accessibility-issues.xlsx` | The output, overwritten on every run |
 | `~/Library/LaunchAgents/com.a11ytracker.weekly.plist` | The schedule |
 
-## How it works
+## How the two searches differ
 
-1. `gh search issues --owner <owner> --label <variant>` runs once per owner and label
-   spelling. Results merge on repo + issue number so duplicates collapse.
-2. `gh repo list` pulls the owner's repos, then a thread pool of 8 checks each repo's
-   label list so the workbook can show repos that have the label defined but no issues.
-3. openpyxl writes three sheets: **Issues**, **Repos**, **Run info**.
+**Public sheet.** With a token, GraphQL returns 100 issues per call with
+`stargazerCount` inline, so ranking by popularity is free. Without one, REST search
+returns no star data, so the tool counts which repos appear most and looks up stars for
+the top 40 only, leaving the rest blank and sorted last. The cap exists because of the
+60 requests per hour anonymous core limit, and Run info says when it applied.
 
-Auth comes from the `gh` CLI's existing token, so no API key is stored in this project
-and private repos the user can see are covered automatically.
+**Own-repo sheet.** Plain REST search with `user:<owner>`, which needs no token for
+public repos. Repo listing prefers `/user/repos?affiliation=owner` when the token owns
+the account (so private repos appear), otherwise `/users/{o}/repos` then `/orgs/{o}/repos`.
 
 ## Design decisions worth remembering
 
-- **No `--state` flag on `gh search issues`.** It only accepts `open|closed`; omitting it
-  returns both, which is what the closed-item history needs.
-- **`preflight()` runs before anything else.** A shared tool fails on missing `gh` or
-  missing openpyxl, so each one exits with the exact fix command.
-- **Sign-in is offered, not instructed.** `ensure_auth()` and the installer both hand off
-  to `gh auth login --web`, which opens github.com with a one-time code, rather than
-  telling the user to go read gh's docs. Guarded by `sys.stdin.isatty()`: under launchd
-  there is no terminal to type a code into, so the scheduled run exits with a message in
-  the log instead of hanging on stdin forever.
-- **`--clipboard` only on macOS.** It needs a clipboard tool that Linux may not have.
-- **Owner defaults to `gh api user --jq .login`.** Zero-argument runs work for whoever
-  cloned it. `--owner a,b` supports people who own both a user and an org.
-- **The label audit is optional.** It costs one API call per repo, which matters on a
-  500-repo org and not at all on a personal account.
+- **Comma-separated labels are OR in GitHub search.** `label:accessibility,a11y,"a b"`
+  is one query instead of four, and multi-word labels need the quotes.
+- **Sample honestly.** The public sheet pulls the most-commented open issues and then
+  sorts by stars, because GitHub cannot sort issues by repo popularity and caps any
+  search at 1000 results. Run info states the sample rule rather than implying the sheet
+  is exhaustive.
+- **Stars, not downloads.** GitHub exposes no download count for a repo. The column is
+  labeled Stars and Run info explains the substitution.
+- **Scheduling never prompts.** A launchd job has no terminal, so nothing in the run path
+  asks a question. Auth is resolved silently or skipped.
+- **403 means rate limit here, not forbidden.** Search answers a burst with 403, so
+  `request()` retries with backoff before giving up, and the error names the fix.
 
 ## Verified behavior
 
-- Personal account, 42 repos: about 4 seconds
-- `mui` org, 20 repos, 679 accessibility items: about 14 seconds
-- Unknown username: warns, then exits 1 with a clear message
-- Scheduled run under launchd: exit 0, the keychain token is readable headlessly
-
-## Rate limits
-
-A full personal run costs about 46 REST calls against a 5000/hour limit, well under 1%
-of the budget, and the weekly schedule uses it once every seven days.
+- Signed in: 42 repos including private, 200 public issues, about 14 seconds
+- Anonymous (gh off PATH): 29 public repos, 100 public issues, stars for 40 repos, 8 seconds
+- Top of the public sheet: `microsoft/vscode` at 188,689 stars
+- Weekly launchd run: exit 0

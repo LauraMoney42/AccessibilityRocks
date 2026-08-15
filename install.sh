@@ -16,39 +16,30 @@ if [[ "$(uname)" != "Darwin" ]]; then
 fi
 
 # --- 1. Dependencies -------------------------------------------------------
-if ! command -v gh >/dev/null 2>&1; then
-  echo "GitHub CLI is required. Install it with:  brew install gh"
-  exit 1
+if ! python3 -c "import openpyxl" >/dev/null 2>&1; then
+  echo "Installing openpyxl..."
+  python3 -m pip install --user --quiet openpyxl
 fi
 
-# Sign-in happens here rather than sending people off to read gh's docs: gh opens
-# github.com in the browser and prints a one-time code to paste there.
-if ! gh auth status >/dev/null 2>&1; then
+# Signing in is optional: the tracker reads public data anonymously. It is only
+# worth doing for private repos and complete popularity ranking, so it is offered
+# rather than required, and declining is not an error.
+if command -v gh >/dev/null 2>&1 && ! gh auth status >/dev/null 2>&1; then
   echo "You are not signed in to GitHub."
-  read -r -p "Open github.com in your browser to sign in now? [Y/n]: " SIGNIN
-  case "${SIGNIN:-y}" in
+  echo "Signing in is optional. It adds your private repos and a complete ranking."
+  read -r -p "Open github.com in your browser to sign in? [y/N]: " SIGNIN
+  case "${SIGNIN:-n}" in
     [Yy]*)
       echo
       echo "gh will ask two short setup questions, then open github.com with a"
       echo "one-time code (copied to your clipboard). Paste it there, then come back."
       echo
-      gh auth login --hostname github.com --git-protocol https --web --clipboard
+      gh auth login --hostname github.com --git-protocol https --web --clipboard || true
       ;;
     *)
-      echo "Skipped. Run 'gh auth login' when you are ready, then re-run install.sh."
-      exit 1
+      echo "Continuing without signing in (public repos only)."
       ;;
   esac
-  if ! gh auth status >/dev/null 2>&1; then
-    echo "Sign-in did not complete. Run 'gh auth login' and try again."
-    exit 1
-  fi
-  echo "Signed in."
-fi
-
-if ! python3 -c "import openpyxl" >/dev/null 2>&1; then
-  echo "Installing openpyxl..."
-  python3 -m pip install --user --quiet openpyxl
 fi
 
 # --- 2. macOS blocks background jobs from ~/Documents, ~/Desktop, ~/Downloads

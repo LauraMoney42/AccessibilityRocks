@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-14 19:28
+- Sign-in is no longer required. Rewrote the transport layer onto urllib against the
+  GitHub REST and GraphQL APIs, with `gh` demoted to one of three optional token sources
+  (`GH_TOKEN`, `GITHUB_TOKEN`, `gh auth token`, or nothing at all).
+- Added an "All public repos" sheet: open accessibility issues across GitHub, ranked by
+  repo stars, with language, comment count, and a good-first-issue column
+- Renamed the personal sheets to "My repos" and "My repo rollup", added stars to the rollup
+- Added `SKILL.md` so the repo can be cloned into `~/.claude/skills/` and driven by an
+  AI assistant with no setup
+- Collapsed the four per-label searches into one query using GitHub's comma-OR label
+  syntax
+- `install.sh` now treats signing in as optional and defaults to no
+- Popularity is measured in stars, since GitHub exposes no download count for repos, and
+  the Run info sheet states that plus the public-sample rule
+- Tested both paths: signed in (42 repos, private included) and fully anonymous with gh
+  removed from PATH (29 public repos, stars capped at 40 with a note in the sheet)
+- Files affected: `track_a11y.py`, `install.sh`, `SKILL.md`, `README.md`,
+  `PROJECT_OVERVIEW.md`
+
 ## 2026-08-14 19:07
 - Browser sign-in: when no GitHub session exists, the installer and the script now offer
   to open github.com through `gh auth login --web` instead of printing a command to run
