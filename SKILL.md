@@ -41,6 +41,7 @@ works immediately for anyone. Do not ask the user to authenticate before trying.
 | `--owner a,b` | scan several accounts into one workbook |
 | `--labels x,y` | match different label spellings |
 | `--per-repo N` | max issues per repo on the public sheet, default 3 |
+| `--max-idle-days N` | drop issues untouched for this long, default 730, 0 keeps all |
 | `--exclude-big-tech` | leave big-company issues out of the file entirely |
 | `--exclude-owners a,b` | filter out more owners |
 | `--min-stars N` | ignore repos below a star count |

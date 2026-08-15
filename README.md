@@ -224,6 +224,16 @@ they never get written at all.
 The owner list lives at the top of `track_a11y.py` under `BIG_TECH_OWNERS` and is meant
 to be edited. `--exclude-owners a,b` adds more for a single run.
 
+**Stale issues are dropped, measured by last activity rather than age.** Nothing untouched
+for more than two years reaches the sheet or the dashboard, and the dashboard has an
+"Active in" control to tighten that to one year, six months, or three months.
+
+Age would have been the wrong test. Twelve issues opened more than five years ago had
+activity in the last three months, including a Telegram screen reader issue from 2015 with
+a comment four days ago and 203 comments on it. Meanwhile plenty of issues opened last year
+have had nothing since. What matters is whether anyone is still there, not when it started.
+`--max-idle-days 0` keeps everything.
+
 The other three rules do drop rows, because they are not judgment calls:
 - **Repos with no recognizable open source license.** Source-available and unlicensed
   code is not the same as open source. Pass `--any-license` to keep them.

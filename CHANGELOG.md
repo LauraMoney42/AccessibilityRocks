@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-14 22:10
+- Dropped issues nobody has touched in two years, via `--max-idle-days` (default 730).
+  405 public issues became 383.
+- Filtered on **last activity, not open date**, after checking the data: 12 issues opened
+  more than five years ago had activity within three months, including a Telegram screen
+  reader issue from 2015 touched four days ago with 203 comments. Filtering by age would
+  have dropped those and kept issues opened last year that were abandoned immediately.
+- Added an "Active in" control to the dashboard: 2 years (default), 1 year, 6 months,
+  3 months. Live counts are 355, 274, 212, 159.
+- Files affected: `track_a11y.py`, `docs/index.html`, `README.md`, `SKILL.md`
+
 ## 2026-08-14 22:06
 - Moved the search and filter bar below the scoreboard, so the page opens with who has
   been fixing things and the controls sit directly above the list they control

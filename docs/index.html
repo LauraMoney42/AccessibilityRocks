@@ -119,7 +119,8 @@
 <header>
   <h1>Accessibility issues that need help</h1>
   <p class="sub">Open accessibility work in independent open source projects. Big-company
-  repos are hidden by default, because they have paid accessibility teams.</p>
+  repos are hidden by default, because they have paid accessibility teams, and anything
+  nobody has touched in two years is left out.</p>
   <p class="sub" id="stamp"></p>
 </header>
 
@@ -152,6 +153,12 @@
     <input type="search" id="q" placeholder="Search title, repo, or label" aria-label="Search issues">
     <select id="area" aria-label="Filter by specialty"><option value="">All specialties</option></select>
     <select id="lang" aria-label="Filter by language"><option value="">Any language</option></select>
+    <select id="active" aria-label="Filter by last activity">
+      <option value="730">Active in 2 years</option>
+      <option value="365">Active in 1 year</option>
+      <option value="180">Active in 6 months</option>
+      <option value="90">Active in 3 months</option>
+    </select>
     <select id="sort" aria-label="Sort issues">
       <option value="stars">Most stars</option>
       <option value="idle">Longest untouched</option>
@@ -206,7 +213,7 @@ function init() {
   const langs = [...new Set(DATA.issues.map(i => i.language))].filter(l => l && l !== "-").sort();
   for (const l of langs) $("lang").add(new Option(l, l));
 
-  for (const el of ["q", "area", "lang", "sort", "gfi", "unlab", "big"]) {
+  for (const el of ["q", "area", "lang", "sort", "active", "gfi", "unlab", "big"]) {
     $(el).addEventListener("input", () => { shown = PAGE; render(); });
   }
   $("post").addEventListener("click", () => {
@@ -324,6 +331,9 @@ function entry(p, n) {
 
 function matches(i) {
   if (!$("big").checked && i.big) return false;
+  // Last activity, not age: an issue from 2015 with a comment last week is alive,
+  // and one opened last year with nothing since is not.
+  if (days(i.updated) > Number($("active").value)) return false;
   if ($("gfi").checked && !i.gfi) return false;
   if ($("unlab").checked && !i.unlabeled) return false;
   const area = $("area").value;

@@ -307,7 +307,23 @@ query($q: String!, $after: String) {
 """
 
 
-def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, per_repo):
+def is_stale(updated_at, max_idle_days):
+    """True when nobody has touched the issue in max_idle_days.
+
+    Staleness is measured from the last activity, not from when the issue was
+    opened. Those are very different questions: a Telegram screen reader issue
+    opened in 2015 had a comment four days ago, while plenty of issues from last
+    year are already abandoned. Filtering on age would have dropped the first and
+    kept the second.
+    """
+    if not max_idle_days or not updated_at:
+        return False
+    touched = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+    return (datetime.now(timezone.utc) - touched).days > max_idle_days
+
+
+def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, per_repo,
+                  max_idle_days=730):
     """Open accessibility issues across all public repos, with repo star counts.
 
     With a token this is GraphQL, which returns stars, license, and archived
@@ -320,7 +336,8 @@ def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, 
     """
     base = f"{label_query(labels)} is:issue is:open is:public"
     dropped = {"big tech": 0, "no clear license": 0, "archived or fork": 0,
-               "below star floor": 0, "extra issues from a repo already listed": 0}
+               "below star floor": 0, "extra issues from a repo already listed": 0,
+               f"untouched for over {max_idle_days} days": 0}
     per_repo_count = {}
 
     def is_big(repo_full):
@@ -359,6 +376,9 @@ def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, 
             for n in block["nodes"]:
                 if not n or not n.get("repository"):
                     continue
+                if is_stale(n.get("updatedAt"), max_idle_days):
+                    dropped[f"untouched for over {max_idle_days} days"] += 1
+                    continue
                 repo = n["repository"]
                 license_id = (repo.get("licenseInfo") or {}).get("spdxId")
                 if not keep(repo["nameWithOwner"], license_id,
@@ -394,6 +414,9 @@ def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, 
         raw = search_rest(base, min(limit * 2, 1000), sort="comments")
         rows = []
         for i in raw:
+            if is_stale(i.get("updated_at"), max_idle_days):
+                dropped[f"untouched for over {max_idle_days} days"] += 1
+                continue
             full = "/".join(i["repository_url"].split("/")[-2:])
             if not keep(full, None, False, False, None):
                 continue
@@ -446,7 +469,8 @@ def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, 
     return rows, capped, {k: v for k, v in dropped.items() if v}
 
 
-def search_untagged(labels, per_phrase, big_owners, drop_big, per_repo, seen_urls):
+def search_untagged(labels, per_phrase, big_owners, drop_big, per_repo, seen_urls,
+                    max_idle_days=730):
     """Accessibility work nobody labeled.
 
     The new default label only helps once maintainers apply it. Everything filed
@@ -463,7 +487,7 @@ def search_untagged(labels, per_phrase, big_owners, drop_big, per_repo, seen_url
         query = f'"{phrase}" in:title is:issue is:open is:public -label:{excluded}'
         for i in search_rest(query, per_phrase, sort="comments"):
             url = i["html_url"]
-            if url in seen_urls:
+            if url in seen_urls or is_stale(i.get("updated_at"), max_idle_days):
                 continue
             full = "/".join(i["repository_url"].split("/")[-2:])
             big = full.split("/")[0].lower() in big_owners
@@ -1128,6 +1152,9 @@ def main():
                     help="include public repos with no recognizable open source license")
     ap.add_argument("--min-stars", type=int, default=0,
                     help="ignore public repos below this star count")
+    ap.add_argument("--max-idle-days", type=int, default=730,
+                    help="drop public issues nobody has touched in this many days, "
+                         "default 730 (0 keeps everything)")
     ap.add_argument("--per-repo", type=int, default=3,
                     help="max issues shown per repo on the public sheet, 0 for no cap")
     args = ap.parse_args()
@@ -1163,6 +1190,8 @@ def main():
     if not args.any_license:
         parts.append("open source license required where known")
     parts.append("no archived repos or forks")
+    if args.max_idle_days:
+        parts.append(f"nothing untouched for more than {args.max_idle_days} days")
     if args.per_repo:
         parts.append(f"at most {args.per_repo} issues per repo")
     if args.min_stars:
@@ -1173,7 +1202,7 @@ def main():
     if not args.no_global:
         global_rows, capped, dropped = search_global(
             labels, min(args.global_limit, 1000), big_owners, args.exclude_big_tech,
-            not args.any_license, args.min_stars, args.per_repo)
+            not args.any_license, args.min_stars, args.per_repo, args.max_idle_days)
         indie = sum(1 for r in global_rows if not r["big"])
         extra = len(global_rows) - indie
         print(f"  {indie} open accessibility issues in independent public repos"
@@ -1182,7 +1211,8 @@ def main():
         if not args.no_untagged:
             seen = {r["url"] for r in global_rows}
             untagged = search_untagged(labels, args.untagged_per_phrase, big_owners,
-                                       args.exclude_big_tech, args.per_repo, seen)
+                                       args.exclude_big_tech, args.per_repo, seen,
+                                       args.max_idle_days)
             add_stars(untagged)
             global_rows.extend(untagged)
             print(f"  {len(untagged)} more that look like accessibility work "
