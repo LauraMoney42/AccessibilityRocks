@@ -135,6 +135,10 @@ UNTAGGED_PHRASES = [
 GENERAL = "General / unclassified"
 
 
+def node_labels_of(node):
+    return [l["name"] for l in ((node.get("labels") or {}).get("nodes") or [])]
+
+
 # Matching is anchored to word starts. Substring matching quietly wrecked this:
 # "form" fired on "information", "platform", and "performance", which put 87
 # unrelated issues into Forms & error messages.
@@ -307,6 +311,64 @@ query($q: String!, $after: String) {
 """
 
 
+# Labels projects use to mark an issue as given up on. Nine issues in a recent
+# run carried one, and every one of them was dead.
+STALE_LABEL_WORDS = ("stale", "no-activity", "no activity", "inactive", "abandoned",
+                     "wontfix", "won't fix", "no response")
+
+
+def has_stale_label(labels):
+    return any(any(w in l.lower() for w in STALE_LABEL_WORDS) for l in labels or [])
+
+
+def last_human_activity(repo, number, comments_count, fallback):
+    """When a person last touched this issue, ignoring bots.
+
+    Stale bots are the reason this exists. A bot posting "marked as stale" bumps
+    `updated_at`, so an abandoned issue reads as fresh: 5 of the 25 most recently
+    active issues in one sample were last touched by a bot, several of them by
+    stale[bot] itself. Sorting by that timestamp surfaces exactly the issues
+    nobody is looking after.
+
+    One request per issue: the last page of comments, five at a time, scanned
+    backwards for a human. If all five are bots, the oldest of them is returned
+    as a conservative lower bound rather than guessing.
+    """
+    if not comments_count:
+        return fallback, False
+    per = 5
+    last_page = max(1, -(-comments_count // per))
+    data = request(f"{API}/repos/{repo}/issues/{number}/comments"
+                   f"?per_page={per}&page={last_page}", soft=True)
+    if not data:
+        return fallback, False
+    for comment in reversed(data):
+        who = ((comment.get("user") or {}).get("login") or "")
+        if not who.endswith("[bot]") and who not in ("github-actions", "stale"):
+            return comment.get("created_at") or fallback, True
+    return data[0].get("created_at") or fallback, True
+
+
+def refresh_activity(rows, cap=400):
+    """Replace bot-bumped timestamps with the last human touch."""
+    checked = corrected = 0
+    todo = [r for r in rows if r.get("comments")][:cap]
+
+    def fetch(r):
+        return last_human_activity(r["repo"], r["number"], r["comments"], r["updatedAt"])
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for r, (when, looked) in zip(todo, pool.map(fetch, todo)):
+            if not looked:
+                continue
+            checked += 1
+            if when and when[:10] < r["updatedAt"][:10]:
+                r["botUpdated"] = r["updatedAt"]
+                r["updatedAt"] = when
+                corrected += 1
+    return checked, corrected
+
+
 def is_stale(updated_at, max_idle_days):
     """True when nobody has touched the issue in max_idle_days.
 
@@ -337,13 +399,17 @@ def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, 
     base = f"{label_query(labels)} is:issue is:open is:public"
     dropped = {"big tech": 0, "no clear license": 0, "archived or fork": 0,
                "below star floor": 0, "extra issues from a repo already listed": 0,
-               f"untouched for over {max_idle_days} days": 0}
+               f"untouched for over {max_idle_days} days": 0,
+               "marked stale by the project": 0}
     per_repo_count = {}
 
     def is_big(repo_full):
         return repo_full.split("/")[0].lower() in big_owners
 
-    def keep(repo_full, license_id, archived, fork, stars):
+    def keep(repo_full, license_id, archived, fork, stars, labels=None):
+        if has_stale_label(labels):
+            dropped["marked stale by the project"] += 1
+            return False
         if drop_big and is_big(repo_full):
             dropped["big tech"] += 1
             return False
@@ -383,7 +449,7 @@ def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, 
                 license_id = (repo.get("licenseInfo") or {}).get("spdxId")
                 if not keep(repo["nameWithOwner"], license_id,
                             repo.get("isArchived"), repo.get("isFork"),
-                            repo["stargazerCount"]):
+                            repo["stargazerCount"], node_labels_of(n)):
                     continue
                 big = is_big(repo["nameWithOwner"])
                 independent += 0 if big else 1
@@ -418,7 +484,8 @@ def search_global(labels, limit, big_owners, drop_big, want_license, min_stars, 
                 dropped[f"untouched for over {max_idle_days} days"] += 1
                 continue
             full = "/".join(i["repository_url"].split("/")[-2:])
-            if not keep(full, None, False, False, None):
+            if not keep(full, None, False, False, None,
+                        [l["name"] for l in i.get("labels", [])]):
                 continue
             if len([r for r in rows if not r["big"]]) >= limit:
                 break
@@ -802,6 +869,7 @@ def write_json(global_rows, fixers, owners, out_path):
             "created": r["createdAt"][:10],
             "updated": r["updatedAt"][:10],
             "big": bool(r.get("big")),
+            "botBumped": bool(r.get("botUpdated")),
             "unlabeled": not r.get("source", "labeled").startswith("labeled"),
             "gfi": any("good first issue" in l.lower() or "good-first-issue" in l.lower()
                        or "help wanted" in l.lower() for l in r["labels"]),
@@ -1152,6 +1220,8 @@ def main():
                     help="include public repos with no recognizable open source license")
     ap.add_argument("--min-stars", type=int, default=0,
                     help="ignore public repos below this star count")
+    ap.add_argument("--no-bot-check", action="store_true",
+                    help="skip checking whether recent activity was only a bot")
     ap.add_argument("--max-idle-days", type=int, default=730,
                     help="drop public issues nobody has touched in this many days, "
                          "default 730 (0 keeps everything)")
@@ -1217,6 +1287,15 @@ def main():
             global_rows.extend(untagged)
             print(f"  {len(untagged)} more that look like accessibility work "
                   f"but carry no accessibility label")
+
+        if args.max_idle_days and not args.no_bot_check:
+            checked, corrected = refresh_activity(global_rows, args.classify_cap)
+            before = len(global_rows)
+            global_rows = [r for r in global_rows
+                           if not is_stale(r["updatedAt"], args.max_idle_days)]
+            print(f"  checked {checked} issues for bot-only activity, corrected "
+                  f"{corrected} timestamps, dropped {before - len(global_rows)} that were "
+                  f"only being bumped by a bot")
 
         if not args.no_deep_classify:
             moved, read = refine_areas(global_rows, args.classify_cap)

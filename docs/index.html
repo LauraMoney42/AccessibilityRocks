@@ -119,8 +119,9 @@
 <header>
   <h1>Accessibility issues that need help</h1>
   <p class="sub">Open accessibility work in independent open source projects. Big-company
-  repos are hidden by default, because they have paid accessibility teams, and anything
-  nobody has touched in two years is left out.</p>
+  repos are hidden by default, because they have paid accessibility teams. Anything no
+  human has touched in two years is left out, and stale-bot comments do not count as
+  activity.</p>
   <p class="sub" id="stamp"></p>
 </header>
 
@@ -381,6 +382,7 @@ function card(i) {
       ${i.areas.map(a => `<span class="chip">${esc(a)}</span>`).join("")}
       ${i.gfi ? `<span class="chip good">good first issue</span>` : ""}
       ${i.unlabeled ? `<span class="chip warm">nobody labeled this</span>` : ""}
+      ${i.botBumped ? `<span class="chip warm">dates are last human comment</span>` : ""}
     </div>
     <div class="meta">opened ${esc(i.created)} · quiet for ${days(i.updated)} days · ${i.comments} comments</div>
     <div class="actions">

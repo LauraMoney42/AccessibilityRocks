@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-14 22:12
+- Stale-bot comments no longer count as activity. A bot posting "marked as stale" bumps
+  `updated_at`, so abandoned issues were reading as fresh: in a 25-issue sample, 5 were
+  last touched by a bot, several by `stale[bot]` itself. The freshness filter was
+  surfacing exactly the issues nobody is looking after.
+- Added `last_human_activity()`: one request per issue for the last page of comments,
+  scanned backwards for a non-bot author. Corrected **140 of 376** timestamps and dropped
+  39 issues whose only recent activity was a bot. 383 public issues became 337.
+- Issues carrying a stale-style label (`stale`, `inactive`, `wontfix`, `no-activity`) are
+  dropped outright, which is free since labels are already in the data
+- Corrected rows show a "dates are last human comment" chip, so the correction is visible
+  rather than silent
+- Added `--no-bot-check` to skip the pass. Full run is now about 100 seconds.
+- Files affected: `track_a11y.py`, `docs/index.html`, `README.md`
+
 ## 2026-08-14 22:10
 - Dropped issues nobody has touched in two years, via `--max-idle-days` (default 730).
   405 public issues became 383.

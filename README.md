@@ -224,6 +224,19 @@ they never get written at all.
 The owner list lives at the top of `track_a11y.py` under `BIG_TECH_OWNERS` and is meant
 to be edited. `--exclude-owners a,b` adds more for a single run.
 
+**Bot activity does not count as activity.** Stale bots post "this issue has been
+automatically marked as stale", which bumps the timestamp and makes an abandoned issue
+look fresh. In one sample, 5 of the 25 most recently active issues were last touched by a
+bot, several by `stale[bot]` itself, so sorting by that timestamp surfaced exactly the
+issues nobody is looking after.
+
+The tracker now reads the last page of comments on each issue and uses the last **human**
+comment instead. On the last run that corrected 140 of 376 timestamps and dropped 39
+issues that were only being bumped by a bot. Rows where the date was corrected are marked
+"dates are last human comment" on the dashboard. Issues carrying a `stale`, `inactive`, or
+`wontfix` style label are dropped outright. `--no-bot-check` skips the pass, which costs
+one request per issue.
+
 **Stale issues are dropped, measured by last activity rather than age.** Nothing untouched
 for more than two years reaches the sheet or the dashboard, and the dashboard has an
 "Active in" control to tighten that to one year, six months, or three months.
