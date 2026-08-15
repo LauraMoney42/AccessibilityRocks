@@ -60,7 +60,6 @@ It would be a bad look otherwise. What was checked and fixed:
 | Landmarks | `header`, `main`, `footer`, and a search region |
 | Skip link | Skips the filter bar straight to the results, which take focus |
 | Keyboard | Every control reachable, all named, focus ring 3px at 5.6:1 (light) and 7.3:1 (dark) |
-| Toggle state | "I'm on it" buttons expose `aria-pressed`, so state is announced |
 | Live regions | Result counts and list changes announce instead of changing silently |
 | Contrast | All text at least 4.5:1 in both themes; control borders raised to 4.4:1 for WCAG 1.4.11 |
 | List semantics | `role="list"` where `list-style: none` would otherwise strip it in VoiceOver |
@@ -89,16 +88,17 @@ the board, and ranking purely on how many projects someone touched lets two driv
 beat twenty-five real ones. Fixes to your own repositories are excluded, since the point
 is helping someone else's users.
 
-**"I'm on it" is a bookmark, nothing more.** It saves the issue to a list in that
-browser's `localStorage`. It does not comment on the issue, notify the maintainer, or
-reserve anything, and the panel says so. To actually claim an issue, comment on it in
-GitHub.
+Everyone who merges a fix also lands on [CONTRIBUTORS.md](CONTRIBUTORS.md), the
+contributors wall, regenerated every Monday. That is a real page in a real repo: linkable,
+indexed, and worth more than a counter only this site recognizes. Two merged pull requests
+also earns GitHub's own Pull Shark achievement, which lands on the contributor's profile.
 
 **The LinkedIn post writer is locked until you are on the scoreboard.** Enter a GitHub
 username, and the page asks the API directly for merged pull requests carrying an
 accessibility label. No merges, no post. Picking issues unlocks nothing: shipping does.
-The draft then quotes real numbers, and the milestone chips count merged fixes rather than
-clicks.
+The draft quotes real numbers and then invites other people in: it opens with "Contribute
+to AccessibilityRocks with me", names what they fixed, and links the issue list. The
+milestone chips count merged fixes, not clicks.
 
 The post is copied to the clipboard rather than passed in the share URL, because LinkedIn
 strips prefilled text.

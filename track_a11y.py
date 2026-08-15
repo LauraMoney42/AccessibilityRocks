@@ -739,6 +739,59 @@ def write_json(global_rows, fixers, owners, out_path):
     return len(issues)
 
 
+def write_contributors(fixers, out_path, site_url):
+    """The contributors wall, as a file GitHub renders on its own.
+
+    Everyone who merged an accessibility fix in the window, not just the ten the
+    dashboard has room for. Being on a real page in a real repo is the point:
+    it is linkable, it shows up in search, and it is not a number that only one
+    website recognizes.
+    """
+    people = (fixers or {}).get("people") or []
+    now = datetime.now(timezone.utc)
+
+    lines = [
+        "# Accessibility contributors",
+        "",
+        f"People who merged accessibility fixes into open source projects in the last "
+        f"{fixers.get('window_days', 90)} days, counted from "
+        f"{fixers.get('since', 'recently')}.",
+        "",
+        f"**{fixers.get('total', 0)} fixes** by **{len(people)} people**. "
+        f"Regenerated every Monday from the GitHub API, so this list keeps moving.",
+        "",
+        "| # | Who | Fixes | Projects | Some of the projects |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for i, p in enumerate(people, 1):
+        repos = ", ".join(f"[{r}](https://github.com/{r})" for r in p["repos"][:3])
+        lines.append(f"| {i} | [@{p['login']}]({p['url']}) | {p['count']} | "
+                     f"{p['projects']} | {repos} |")
+
+    lines += [
+        "",
+        "## How to get on this list",
+        "",
+        f"1. Find an open accessibility issue at [AccessibilityRocks]({site_url}).",
+        "2. Fix it and get the pull request merged.",
+        "3. That is it. The next Monday refresh picks you up automatically.",
+        "",
+        "Only merged pull requests carrying an accessibility label count, and fixes to "
+        "your own repositories are excluded, since the point is helping someone else's "
+        "users. Each project counts at most five fixes toward the ordering, so one large "
+        "backlog cannot take over the list.",
+        "",
+        "Two merged pull requests also earns you GitHub's own Pull Shark achievement, "
+        "which lands on your profile rather than only here.",
+        "",
+        f"<sub>Last updated {now.strftime('%Y-%m-%d %H:%M UTC')}.</sub>",
+        "",
+    ]
+    with open(out_path, "w") as fh:
+        fh.write("\n".join(lines))
+    return len(people)
+
+
 def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
                    filter_note, out_path):
     from openpyxl import Workbook
@@ -963,6 +1016,10 @@ def main():
     ap.add_argument("--out", default=DEFAULT_OUT, help="output .xlsx path")
     ap.add_argument("--json", dest="json_out", default=None,
                     help="also write dashboard data to this .json path")
+    ap.add_argument("--contributors", default=None,
+                    help="also write the contributors wall to this .md path")
+    ap.add_argument("--site", default="https://lauramoney42.github.io/AccessibilityRocks/",
+                    help="dashboard URL used in generated links")
     ap.add_argument("--labels", default=",".join(DEFAULT_LABELS),
                     help="comma-separated label spellings to match")
     ap.add_argument("--global-limit", type=int, default=300,
@@ -1072,6 +1129,10 @@ def main():
     if args.json_out:
         n = write_json(global_rows, fixers, owners, os.path.expanduser(args.json_out))
         print(f"  wrote {n} issues to {args.json_out}")
+
+    if args.contributors and fixers:
+        n = write_contributors(fixers, os.path.expanduser(args.contributors), args.site)
+        print(f"  wrote {n} contributors to {args.contributors}")
 
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     print(f"[{stamp}] your repos: {len(mine)} items ({open_mine} open) across "

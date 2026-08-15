@@ -67,6 +67,11 @@ its data with `--json docs/data.json`. It is hosted on GitHub Pages from `/docs`
 refreshed weekly by `.github/workflows/refresh.yml`. If the user asks to publish it, point
 them at Settings > Pages > "Deploy from a branch" > main > /docs.
 
+## The contributors wall
+
+`--contributors CONTRIBUTORS.md` writes a markdown table of everyone who merged an
+accessibility fix in the window. The weekly workflow regenerates and commits it.
+
 ## Scheduling
 
 `./install.sh` sets up a weekly macOS job and asks for a day and time. Only bring this

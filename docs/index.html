@@ -151,23 +151,21 @@
     <label class="check"><input type="checkbox" id="big"> Include big tech</label>
   </div>
 
-  <div class="panel" id="me">
-    <h2>Your shortlist</h2>
-    <p class="sub small">A private bookmark list, stored in this browser only. It does not
-    comment on the issue or tell the maintainer anything, so nobody is blocked if you
-    change your mind. To claim an issue for real, say so in a comment on GitHub.</p>
-    <p class="sub" id="mestat" role="status" aria-live="polite">Nothing picked yet. Hit "I'm on it" on any issue to start a list.</p>
-    <ol class="mylist" id="mylist"></ol>
-    <div class="actions" id="meactions" hidden>
-      <button id="clear">Clear shortlist</button>
-    </div>
+  <div class="panel" id="board">
+    <h2>Who has been fixing these</h2>
+    <p class="sub" id="boardsub"></p>
+    <ol class="board" id="boardlist" role="list" aria-label="Top accessibility fixers"></ol>
+    <p class="sub small">Merged pull requests carrying an accessibility label, from the
+    GitHub API. Each project counts at most five fixes, so one backlog cannot own the
+    board, and fixes to your own repos are not counted.</p>
   </div>
 
   <div class="panel" id="credit">
-    <h2>Get credit for what you fixed</h2>
-    <p class="sub">The post writer unlocks once you are on the scoreboard, which means
-    GitHub confirms you have merged an accessibility fix. Picking issues does not unlock
-    it: shipping does.</p>
+    <h2>On the wall? Bring someone with you</h2>
+    <p class="sub">Everyone who merges a fix lands on the
+    <a id="walllink" href="#">contributors wall</a>, a real page in the repo, not a number
+    only this site recognizes. Check your username to unlock a post that invites other
+    people to join you.</p>
     <div class="actions">
       <label class="check" for="ghuser">GitHub username</label>
       <input id="ghuser" type="text" autocomplete="username" spellcheck="false"
@@ -177,19 +175,10 @@
     <p class="sub" id="vstatus" role="status" aria-live="polite"></p>
     <div class="tiers" id="tiers"></div>
     <div class="actions" id="creditactions" hidden>
-      <button class="primary" id="post">Write my LinkedIn post</button>
+      <button class="primary" id="post">Write a post inviting others</button>
       <button id="signout">Not me</button>
     </div>
     <textarea id="posttext" hidden readonly aria-label="Your draft LinkedIn post"></textarea>
-  </div>
-
-  <div class="panel" id="board">
-    <h2>Who has been fixing these</h2>
-    <p class="sub" id="boardsub"></p>
-    <ol class="board" id="boardlist" role="list" aria-label="Top accessibility fixers"></ol>
-    <p class="sub small">Merged pull requests carrying an accessibility label, from the
-    GitHub API. Each project counts at most five fixes, so one backlog cannot own the
-    board, and fixes to your own repos are not counted.</p>
   </div>
 
   <p class="counts" id="counts" role="status" aria-live="polite"></p>
@@ -207,10 +196,8 @@
 </main>
 
 <script>
-const STORE = "a11y-picks-v1";
 const VERIFIED = "a11y-verified-v1";
 let DATA = { issues: [], areas: [], generated: "" };
-let picks = JSON.parse(localStorage.getItem(STORE) || "[]");
 let me = JSON.parse(localStorage.getItem(VERIFIED) || "null");
 const PAGE = 100;      // tab stops, not bytes: 300 cards is ~900 stops to pass through
 let shown = PAGE;
@@ -252,7 +239,7 @@ function init() {
     shown += PAGE;
     render();
     // Land the keyboard on the first newly revealed card, not back at the top.
-    document.querySelectorAll(".card button")[first]?.focus();
+    document.querySelectorAll(".card .chip")[first]?.focus();
   });
   renderBoard();
   $("post").addEventListener("click", writePost);
@@ -262,10 +249,10 @@ function init() {
     me = null; localStorage.removeItem(VERIFIED); $("ghuser").value = ""; renderCredit();
   });
   if (me) $("ghuser").value = me.login;
+  // Same repo, so derive it rather than hardcoding a URL that would rot in a fork.
+  $("walllink").href = DATA.wall ||
+    "https://github.com/LauraMoney42/AccessibilityRocks/blob/main/CONTRIBUTORS.md";
   renderCredit();
-  $("clear").addEventListener("click", () => {
-    picks = []; save(); render();
-  });
   render();
 }
 
@@ -319,15 +306,10 @@ function render() {
   const left = list.length - shown;
   $("morewrap").hidden = left <= 0;
   $("more").textContent = `Show ${Math.min(left, PAGE)} more of ${list.length}`;
-  for (const btn of document.querySelectorAll("[data-pick]")) {
-    btn.addEventListener("click", () => toggle(btn.dataset.pick));
-  }
-  renderMe();
 }
 
 function card(i) {
-  const picked = picks.some(p => p.url === i.url);
-  return `<article class="card ${picked ? "claimed" : ""}">
+  return `<article class="card">
     <div class="repo">
       <strong>${esc(i.repo)}</strong>
       <span>★ ${i.stars.toLocaleString()}</span>
@@ -341,23 +323,12 @@ function card(i) {
     </div>
     <div class="meta">opened ${esc(i.created)} · quiet for ${days(i.updated)} days · ${i.comments} comments</div>
     <div class="actions">
-      <button data-pick="${esc(i.url)}" aria-pressed="${picked}">${picked ? "On your list" : "I'm on it"}</button>
-      <a class="chip" href="${esc(i.url)}" target="_blank" rel="noopener">Open issue</a>
+      <a class="chip" href="${esc(i.url)}" target="_blank" rel="noopener">Open this issue</a>
     </div>
   </article>`;
 }
 
-function toggle(url) {
-  const i = DATA.issues.find(x => x.url === url);
-  if (!i) return;
-  const at = picks.findIndex(p => p.url === url);
-  if (at >= 0) picks.splice(at, 1);
-  else picks.push({ url, repo: i.repo, title: i.title, areas: i.areas });
-  save();
-  render();
-}
 
-function save() { localStorage.setItem(STORE, JSON.stringify(picks)); }
 
 async function checkBoard() {
   const login = $("ghuser").value.trim().replace(/^@/, "");
@@ -440,29 +411,27 @@ function renderCredit() {
     `<span class="tier ${n >= need ? "" : "off"}">${name}</span>`).join("");
 }
 
-function renderMe() {
-  const n = picks.length;
-  $("mestat").textContent = n
-    ? n + " issue" + (n === 1 ? "" : "s") + " on your list."
-    : 'Nothing picked yet. Hit "I\'m on it" on any issue to start a list.';
-  $("meactions").hidden = n === 0;
-
-  $("mylist").innerHTML = picks.map(p =>
-    `<li><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.repo)}</a> — ${esc(p.title)}</li>`
-  ).join("");
-}
 
 function writePost() {
   if (!me) return;
-  const next = picks.slice(0, 3);
+  // A post drafted from a local copy must still link somewhere a reader can go.
+  const site = /^(localhost|127\.|\[?::1)/.test(location.hostname)
+    ? "https://lauramoney42.github.io/AccessibilityRocks/"
+    : location.href.split("#")[0].split("?")[0];
+  const one = me.count === 1;
   const text =
-`I have merged ${me.count} accessibility fix${me.count === 1 ? "" : "es"} into open source projects${me.projects > 1 ? `, across ${me.projects}+ of them` : ""}.
+`Contribute to AccessibilityRocks with me.
 
-${me.repos.map(r => `• ${r}`).join("\n")}
+I have merged ${me.count} accessibility fix${one ? "" : "es"} into open source${me.projects > 1 ? ` across ${me.projects} projects` : ""}${me.repos.length ? `, including ${me.repos.slice(0, 3).join(", ")}` : ""}. Every one of them removed a real barrier for somebody using a screen reader, a keyboard, or other assistive tech.
 
-Every one of these was a real barrier for somebody using a screen reader, a keyboard, or other assistive tech. These projects are maintained by volunteers, so a single fix reaches a lot of people.
-${next.length ? `\nNext on my list:\n${next.map(p => `• ${p.repo}: ${p.title}`).join("\n")}\n` : ""}
-If you write code and want somewhere useful to start, open accessibility issues are a good door in. I found these here: ${location.href.split("?")[0]}
+These projects are maintained by volunteers who are already stretched thin, so one fix reaches a lot of people.
+
+If you write code, there is a list of open accessibility issues here, sorted by specialty and marked up with good first issues:
+${site}
+
+Pick one. Two merged pull requests also earns you GitHub's Pull Shark badge, and everyone who ships a fix lands on the contributors wall.
+
+Who is in?
 
 #accessibility #a11y #opensource`;
 
@@ -480,7 +449,7 @@ If you write code and want somewhere useful to start, open accessibility issues 
   // LinkedIn strips prefilled text from share URLs, so the post is on the
   // clipboard and the composer opens empty. Paste is one keystroke.
   setTimeout(() => window.open("https://www.linkedin.com/feed/?shareActive=true", "_blank", "noopener"), 400);
-  setTimeout(() => { $("post").textContent = "Write my LinkedIn post"; }, 4000);
+  setTimeout(() => { $("post").textContent = "Write a post inviting others"; }, 4000);
 }
 
 load();

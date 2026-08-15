@@ -32,13 +32,14 @@ jobs:
             --global-limit 300 \
             --classify-cap 400 \
             --json docs/data.json \
+            --contributors CONTRIBUTORS.md \
             --out /tmp/accessibility-issues.xlsx
 
       - name: Commit if the data moved
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/data.json
+          git add docs/data.json docs/badge-*.json CONTRIBUTORS.md
           # No commit when nothing changed, so the history stays meaningful.
           git diff --staged --quiet || git commit -m "Refresh accessibility data"
           git push

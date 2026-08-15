@@ -1,6 +1,22 @@
 # Changelog
 
 ## 2026-08-14 21:35
+- Removed the "I'm on it" shortlist entirely: buttons, panel, localStorage, and the
+  toggle code. It was a bookmark that looked like a claim, and recognition now comes from
+  merged work instead.
+- Added the contributors wall: `--contributors CONTRIBUTORS.md` writes a markdown table of
+  everyone who merged an accessibility fix in the window (40 people, 246 fixes), with a
+  "how to get on this list" section. The weekly workflow regenerates and commits it.
+- Rewrote the LinkedIn draft as an invitation. It opens with "Contribute to
+  AccessibilityRocks with me", names the person's real merged fixes and projects, links
+  the issue list, mentions Pull Shark and the wall, and closes with "Who is in?"
+- Post writer moved directly under the scoreboard and links to the wall
+- Fixed hashtags being duplicated in the draft, and a draft written from a local copy
+  linking to localhost instead of the live site
+- Files affected: `track_a11y.py`, `docs/index.html`, `.github/workflows/refresh.yml`,
+  `CONTRIBUTORS.md`, `README.md`, `SKILL.md`
+
+## 2026-08-14 21:35
 - The LinkedIn post writer now unlocks only for people on the scoreboard. Entering a
   GitHub username queries the API for merged accessibility PRs, so recognition follows a
   merge rather than a click. Milestone chips now count merged fixes.
