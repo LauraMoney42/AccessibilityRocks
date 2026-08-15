@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-14 20:49
+- Dates are now real Excel dates with a `yyyy-mm-dd` format instead of strings, so sorting
+  by date is chronological. Counts are numbers and blanks are `None`.
+- Added **Last activity** and **Idle (days)** so abandoned issues can be sorted to the top
+- Every issue is now read and labeled, not just the vague ones: `refine_areas()` fetches
+  all 405 bodies (cap 600, `--classify-cap`) in about 35 seconds
+- Added **Also covers**: issues get every area they touch, not just one, since a modal
+  dialog bug is both focus and screen reader work. 102 of 405 rows carry more than one.
+- **By specialty** now splits primary from secondary counts so the index matches what
+  filtering actually returns
+- Fixed silently wrong classification: keyword matching was substring-based, so `form`
+  fired on "information", "platform", and "performance". That put 87 unrelated issues in
+  Forms & error messages. Matching is now anchored with `\b`, and Forms dropped from 124
+  to 31 with the difference returning to General / unclassified.
+- Files affected: `track_a11y.py`, `README.md`, `SKILL.md`, `PROJECT_OVERVIEW.md`
+
 ## 2026-08-14 20:39
 - Added a specialty column and a **By specialty** index sheet, so a contributor can find
   the accessibility area they actually work in. Nine areas, ordered keyword matching,

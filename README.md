@@ -18,7 +18,7 @@ supported and adds private repos, but it is never required.
 
 | Sheet | Contents |
 | --- | --- |
-| **All public repos** | Open accessibility issues, most-starred first. Column A is the specialty, column B is `independent` or `big company`, and "Found via" says whether the issue carried a label or was caught by text search. |
+| **All public repos** | Open accessibility issues, most-starred first. Every column sorts and filters: real dates, numeric stars, comments, age, and idle days. |
 | **By specialty** | The index: how many open issues and projects sit in each area, how many are good first issues, and the most-starred project in that area. Start here, then filter column A on the sheet before it. |
 | **My repos** | Accessibility issues in your own repos, open and closed. Open items sort first, amber for open, green for closed. |
 | **My repo rollup** | Every repo you own with its open and closed counts, so the quiet ones are visible too. |
@@ -79,18 +79,37 @@ On Linux, add this to `crontab -e` instead (last field is the day, 0 for Sunday)
 --out PATH            where to write the .xlsx
 ```
 
+## Sorting and filtering
+
+Every column is real data, not text that looks like data:
+
+- **Opened** and **Last activity** are Excel dates, so sorting them is chronological.
+  Text dates sort alphabetically, which is why they are stored properly here.
+- **Stars**, **Comments**, **Age (days)**, **Idle (days)**, and **#** are numbers.
+- **Area**, **Also covers**, **Owner**, **License**, **Language**, **Found via**, and
+  **Good first issue** are consistent values, so their filter dropdowns are short lists
+  rather than hundreds of one-off strings.
+
+Useful combinations: sort by **Idle (days)** descending to find abandoned issues, or by
+**Opened** ascending for the oldest unfixed problems. Filter **Good first issue** to
+`yes` and sort by **Stars** for high-visibility starter work.
+
 ## Finding your area
 
-Issues are sorted into nine specialties from their title, labels, and body:
+Every issue is read and given our own labels, from nine specialties:
 
 Screen reader & ARIA, Keyboard & focus, Color & contrast, Captions & media, Motion &
 seizure safety, Text & zoom, Forms & error messages, Touch & mobile, Cognitive & plain
 language. Anything that cannot be placed lands in **General / unclassified** rather than
 being guessed at.
 
-Open the **By specialty** sheet, find your row, then filter column A on the public sheet
-to that area. A typical run puts around 130 issues in Screen reader & ARIA and 55 in
-Keyboard & focus.
+Issues usually touch more than one area: a modal dialog bug is both focus and screen
+reader work. **Area** is the primary one, used for grouping, and **Also covers** lists
+the rest, so filtering on either finds the issue. About a quarter of rows carry more than
+one area.
+
+Open the **By specialty** sheet, find your row, then filter the public sheet to that area.
+The index counts primary and secondary separately, so it matches what filtering returns.
 
 ## Work nobody labeled
 

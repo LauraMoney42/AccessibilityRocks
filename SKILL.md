@@ -8,7 +8,7 @@ description: Build a spreadsheet of accessibility-labeled GitHub issues, both ac
 Produces `accessibility-issues.xlsx` with five sheets:
 
 1. **All public repos** - open accessibility issues, most-starred first, with a "good first issue" column. Column A tags each row `independent` or `big company`, and the sheet opens filtered to `independent`. Big-company rows are present but hidden, so the reader can unhide them without re-running anything. Unlicensed repos, archived repos, and forks are left out.
-2. **By specialty** - counts per accessibility area (Screen reader & ARIA, Keyboard & focus, Color & contrast, and six more). The fastest answer to "where can someone with my skills help?"
+2. **By specialty** - counts per accessibility area (Screen reader & ARIA, Keyboard & focus, Color & contrast, and six more), split into primary and secondary. The fastest answer to "where can someone with my skills help?"
 3. **My repos** - accessibility issues in the person's own repos, open and closed
 4. **My repo rollup** - per-repo counts, so empty repos are visible too
 5. **Run info** - what was searched and when
@@ -45,7 +45,8 @@ works immediately for anyone. Do not ask the user to authenticate before trying.
 | `--exclude-owners a,b` | filter out more owners |
 | `--min-stars N` | ignore repos below a star count |
 | `--no-untagged` | skip the search for accessibility work nobody labeled |
-| `--no-deep-classify` | skip reading issue bodies to sort vague titles |
+| `--no-deep-classify` | skip reading issue bodies (faster, vaguer labels) |
+| `--classify-cap N` | most issues to read in full, default 600 |
 | `--out PATH` | write somewhere else |
 
 ## When to suggest signing in
@@ -71,6 +72,11 @@ If the user says what they specialize in (screen readers, keyboard, contrast, ca
 read the **By specialty** sheet, then name specific issues from that area on the public
 sheet. Prefer rows where "Good first issue" is yes. The rows tagged `text match` in Found
 via are unlabeled work, which usually means nobody else is looking at it.
+
+## Sorting
+
+Dates are real Excel dates and every count is a number, so the user can sort by any
+column. Suggest **Idle (days)** for abandoned issues and **Opened** for the oldest ones.
 
 ## Notes
 

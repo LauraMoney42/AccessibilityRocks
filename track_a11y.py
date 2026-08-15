@@ -22,6 +22,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -108,8 +109,9 @@ AREAS = [
         "dyslexi", "reflow", "magnif",
     ]),
     ("Forms & error messages", [
-        "form", "input field", "placeholder", "error message", "validation",
-        "required field", "autocomplete attribute",
+        "form field", "form control", "form label", "input field", "placeholder",
+        "error message", "validation", "required field", "checkbox", "radio button",
+        "autocomplete attribute", "label for",
     ]),
     ("Touch & mobile", [
         "touch target", "tap target", "gesture", "pinch", "swipe", "mobile a11y",
@@ -133,13 +135,30 @@ UNTAGGED_PHRASES = [
 GENERAL = "General / unclassified"
 
 
+# Matching is anchored to word starts. Substring matching quietly wrecked this:
+# "form" fired on "information", "platform", and "performance", which put 87
+# unrelated issues into Forms & error messages.
+AREA_PATTERNS = [
+    (area, re.compile(r"\b(?:" + "|".join(re.escape(k) for k in needles) + r")", re.I))
+    for area, needles in AREAS
+]
+
+
+def classify_all(title, labels, body=""):
+    """Every specialty an issue touches, in AREAS order.
+
+    Issues are rarely about one thing: a modal dialog bug is usually both a
+    focus problem and a screen reader problem. The first match becomes the
+    primary area for grouping, the rest go in "Also covers" so filtering on any
+    one of them finds the issue.
+    """
+    haystack = " ".join([title or "", " ".join(labels or []), (body or "")[:1500]])
+    hits = [area for area, pattern in AREA_PATTERNS if pattern.search(haystack)]
+    return hits or [GENERAL]
+
+
 def classify(title, labels, body=""):
-    """Best-guess specialty for an issue, from its title, labels, and body."""
-    haystack = " ".join([title or "", " ".join(labels or []), (body or "")[:600]]).lower()
-    for area, needles in AREAS:
-        if any(n in haystack for n in needles):
-            return area
-    return GENERAL
+    return classify_all(title, labels, body)[0]
 
 
 # --------------------------------------------------------------------------
@@ -498,31 +517,35 @@ def add_stars(rows):
                     r["language"] = info.get("language") or "-"
 
 
-def refine_areas(rows, cap=150):
-    """Re-classify vague rows by reading the issue body.
+def refine_areas(rows, cap):
+    """Read each issue and label it ourselves.
 
-    Titles like "Improve accessibility" place nowhere, and the bulk search
-    cannot carry bodies (GraphQL times out on them). One REST call per unplaced
-    issue is affordable with a token and worth it: an unsorted pile helps nobody
-    find their specialty.
+    The bulk search cannot carry issue bodies (GraphQL returns
+    RESOURCE_LIMITS_EXCEEDED at 100 nodes and times out at 50), so this reads
+    them one at a time: one REST call per issue, eight in flight, soft so a
+    failure costs a row rather than the run. Reading the body is what turns
+    "Improve accessibility" into "Keyboard & focus".
     """
-    todo = [r for r in rows if r["area"] == GENERAL][:cap]
+    todo = rows[:cap]
     if not todo:
-        return 0
+        return 0, 0
 
     def fetch(r):
         return request(f"{API}/repos/{r['repo']}/issues/{r['number']}", soft=True)
 
-    moved = 0
+    moved, read = 0, 0
     with ThreadPoolExecutor(max_workers=8) as pool:
         for r, info in zip(todo, pool.map(fetch, todo)):
             if not info:
                 continue
-            area = classify(r["title"], r["labels"], info.get("body"))
-            if area != GENERAL:
-                r["area"] = area
+            read += 1
+            before = r.get("area", GENERAL)
+            areas = classify_all(r["title"], r["labels"], info.get("body"))
+            r["areas"] = areas
+            r["area"] = areas[0]
+            if before == GENERAL and areas[0] != GENERAL:
                 moved += 1
-    return moved
+    return moved, read
 
 
 def search_owner_issues(owners, labels):
@@ -614,6 +637,11 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
         ws.freeze_panes = "A2"
         ws.auto_filter.ref = ws.dimensions
 
+    def date_cells(ws, row, cols):
+        """Real dates, not strings: Excel sorts text dates alphabetically."""
+        for col in cols:
+            ws.cell(row=row, column=col).number_format = "yyyy-mm-dd"
+
     def link_cell(ws, row, col, url):
         c = ws.cell(row=row, column=col)
         c.hyperlink = url
@@ -626,19 +654,22 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
     # --- Sheet 1: all public repos, most popular first ---------------------
     ws = wb.active
     ws.title = "All public repos"
-    ws.append(["Area", "Owner", "Repo", "Stars", "License", "Language", "#", "Title",
-               "Labels", "Found via", "Comments", "Good first issue", "Created",
-               "Updated", "Age (days)", "Link"])
+    ws.append(["Area", "Also covers", "Owner", "Repo", "Stars", "License", "Language",
+               "#", "Title", "Labels", "Found via", "Comments", "Good first issue",
+               "Opened", "Last activity", "Age (days)", "Idle (days)", "Link"])
     big_rows = []
     for r in global_rows:
         created = parse_ts(r["createdAt"])
+        updated = parse_ts(r["updatedAt"])
         gfi = any("good first issue" in l.lower() or "good-first-issue" in l.lower()
                   or "help wanted" in l.lower() for l in r["labels"])
+        areas = r.get("areas") or [r.get("area", GENERAL)]
         ws.append([
             r.get("area", GENERAL),
+            ", ".join(areas[1:]) or "-",
             "big company" if r.get("big") else "independent",
             r["repo"],
-            r["stars"] if r["stars"] is not None else "",
+            r["stars"],
             r.get("license", "?"),
             r["language"],
             r["number"],
@@ -646,24 +677,26 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
             ", ".join(r["labels"]),
             r.get("source", "labeled"),
             r["comments"],
-            "yes" if gfi else "",
-            created.strftime("%Y-%m-%d") if created else "",
-            parse_ts(r["updatedAt"]).strftime("%Y-%m-%d") if r["updatedAt"] else "",
-            (now - created).days if created else "",
+            "yes" if gfi else "no",
+            created.date() if created else None,
+            updated.date() if updated else None,
+            (now - created).days if created else None,
+            (now - updated).days if updated else None,
             r["url"],
         ])
-        link_cell(ws, ws.max_row, 16, r["url"])
+        date_cells(ws, ws.max_row, (14, 15))
+        link_cell(ws, ws.max_row, 18, r["url"])
         if r.get("big"):
             big_rows.append(ws.max_row)
-            for c in range(1, 17):
+            for c in range(1, 19):
                 ws.cell(row=ws.max_row, column=c).fill = big_fill
-    style(ws, [26, 13, 30, 8, 11, 11, 7, 50, 24, 22, 10, 16, 12, 12, 11, 8])
+    style(ws, [24, 26, 13, 28, 8, 11, 11, 7, 46, 22, 22, 10, 16, 12, 13, 11, 11, 8])
 
     # Column A opens filtered to "independent". Clearing the filter in Excel (or
     # unhiding the rows) brings the big-company issues back, which is the point:
     # the decision lives in the spreadsheet, not in how the file was generated.
     if big_rows:
-        ws.auto_filter.add_filter_column(1, ["independent"], blank=False)
+        ws.auto_filter.add_filter_column(2, ["independent"], blank=False)
         for row_idx in big_rows:
             ws.row_dimensions[row_idx].hidden = True
 
@@ -671,14 +704,18 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
     # An index, not data: someone who does screen reader work should be able to
     # see their pile without scrolling the whole public sheet.
     ws_area = wb.create_sheet("By specialty")
-    ws_area.append(["Area", "Open issues", "Projects", "Good first issue",
-                    "Unlabeled", "Most-starred project"])
+    ws_area.append(["Area", "Primary area", "Also covers", "Total if you filter both",
+                    "Projects", "Good first issue", "Unlabeled", "Most-starred project"])
+
+    def blank_tally():
+        return {"n": 0, "also": 0, "repos": {}, "gfi": 0, "untagged": 0}
+
     tally = {}
     for r in global_rows:
         if r.get("big"):
             continue
-        t = tally.setdefault(r.get("area", GENERAL),
-                             {"n": 0, "repos": {}, "gfi": 0, "untagged": 0})
+        areas = r.get("areas") or [r.get("area", GENERAL)]
+        t = tally.setdefault(areas[0], blank_tally())
         t["n"] += 1
         t["repos"][r["repo"]] = max(t["repos"].get(r["repo"], 0), r["stars"] or 0)
         if any("good first issue" in l.lower() or "good-first-issue" in l.lower()
@@ -686,34 +723,44 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
             t["gfi"] += 1
         if not r.get("source", "labeled").startswith("labeled"):
             t["untagged"] += 1
-    for area, t in sorted(tally.items(), key=lambda kv: -kv[1]["n"]):
+        # Secondary areas counted separately, so the index matches what filtering
+        # on "Also covers" actually returns.
+        for secondary in areas[1:]:
+            tally.setdefault(secondary, blank_tally())["also"] += 1
+
+    for area, t in sorted(tally.items(), key=lambda kv: -(kv[1]["n"] + kv[1]["also"])):
         top = max(t["repos"], key=lambda k: t["repos"][k]) if t["repos"] else "-"
-        ws_area.append([area, t["n"], len(t["repos"]), t["gfi"], t["untagged"], top])
-    style(ws_area, [28, 12, 10, 16, 11, 34])
+        ws_area.append([area, t["n"], t["also"], t["n"] + t["also"],
+                        len(t["repos"]), t["gfi"], t["untagged"], top])
+    style(ws_area, [28, 13, 12, 22, 10, 16, 11, 32])
 
     # --- Sheet 3: your own repos ------------------------------------------
     ws2 = wb.create_sheet("My repos")
-    ws2.append(["Area", "Repo", "#", "Title", "State", "Labels", "Assignee", "Comments",
-                "Created", "Updated", "Age (days)", "Link"])
+    ws2.append(["Area", "Also covers", "Repo", "#", "Title", "State", "Labels", "Assignee",
+                "Comments", "Opened", "Last activity", "Age (days)", "Idle (days)", "Link"])
     # Open first, then most recently updated: the top of the sheet is the work.
     mine.sort(key=lambda i: (i["state"] != "open", -parse_ts(i["updatedAt"]).timestamp()))
     for i in mine:
         created = parse_ts(i["createdAt"])
+        updated = parse_ts(i["updatedAt"])
+        areas = i.get("areas") or [classify(i["title"], i["labels"])]
         ws2.append([
-            classify(i["title"], i["labels"]),
+            areas[0], ", ".join(areas[1:]) or "-",
             i["repo"], i["number"], i["title"], i["state"],
             ", ".join(i["labels"]), i["assignee"], i["comments"],
-            created.strftime("%Y-%m-%d") if created else "",
-            parse_ts(i["updatedAt"]).strftime("%Y-%m-%d") if i["updatedAt"] else "",
-            (now - created).days if created else "",
+            created.date() if created else None,
+            updated.date() if updated else None,
+            (now - created).days if created else None,
+            (now - updated).days if updated else None,
             i["url"],
         ])
         row = ws2.max_row
         fill = open_fill if i["state"] == "open" else closed_fill
-        for c in range(1, 13):
+        for c in range(1, 15):
             ws2.cell(row=row, column=c).fill = fill
-        link_cell(ws2, row, 12, i["url"])
-    style(ws2, [26, 28, 6, 56, 8, 30, 16, 10, 12, 12, 11, 8])
+        date_cells(ws2, row, (10, 11))
+        link_cell(ws2, row, 14, i["url"])
+    style(ws2, [24, 24, 26, 6, 50, 8, 28, 16, 10, 12, 13, 11, 11, 8])
 
     # --- Sheet 4: your repo rollup ----------------------------------------
     ws3 = wb.create_sheet("My repo rollup")
@@ -734,9 +781,10 @@ def build_workbook(global_rows, capped, dropped, mine, repos, owners, labels,
             c["open"], c["closed"], c["open"] + c["closed"],
             "yes" if repo.get("private") else "no",
             "yes" if repo.get("archived") else "no",
-            updated.strftime("%Y-%m-%d") if updated else "",
+            updated.date() if updated else None,
             repo["html_url"],
         ])
+        date_cells(ws3, ws3.max_row, (8,))
         if c["open"]:
             for col in range(1, 10):
                 ws3.cell(row=ws3.max_row, column=col).fill = open_fill
@@ -795,7 +843,9 @@ def main():
     ap.add_argument("--no-global", action="store_true",
                     help="skip the all-public-repos sheet")
     ap.add_argument("--no-deep-classify", action="store_true",
-                    help="skip reading issue bodies to sort vague titles into a specialty")
+                    help="skip reading issue bodies (faster, but vaguer labels)")
+    ap.add_argument("--classify-cap", type=int, default=600,
+                    help="most issues to read in full for labeling, default 600")
     ap.add_argument("--no-untagged", action="store_true",
                     help="skip the search for accessibility work nobody labeled")
     ap.add_argument("--untagged-per-phrase", type=int, default=25,
@@ -870,8 +920,8 @@ def main():
                   f"but carry no accessibility label")
 
         if not args.no_deep_classify:
-            moved = refine_areas(global_rows)
-            print(f"  sorted {moved} vague ones into a specialty by reading the issue")
+            moved, read = refine_areas(global_rows, args.classify_cap)
+            print(f"  read {read} issues to label them, {moved} of which no title could place")
 
         global_rows.sort(key=lambda r: (r["big"],
                                         -(r["stars"] if r["stars"] is not None else -1),

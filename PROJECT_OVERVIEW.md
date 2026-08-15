@@ -81,19 +81,34 @@ removed, so the filtering is visible rather than silent.
 Filtered rows are replaced rather than subtracted: the pull keeps going until it has the
 requested count of keepers.
 
+## Spreadsheet mechanics
+
+Dates are written as `datetime` values with a `yyyy-mm-dd` number format, not strings.
+A string date sorts alphabetically, which looks right for ISO dates until a filter or a
+chart touches it, and it can never be compared or subtracted. Counts are ints for the
+same reason. Missing values are `None`, not `""`, so they sort as blanks instead of
+before every number.
+
 ## Specialty classification
 
-`AREAS` is an ordered list of (area, keywords). First match wins, so specific areas come
-before general ones, and anything unplaced lands in `General / unclassified` rather than
-being guessed at. Three inputs feed it: title, labels, and body.
+`AREAS` is an ordered list of (area, keywords), compiled into `AREA_PATTERNS` with a
+leading `\b`. Matching is anchored to word starts because plain substring matching was
+quietly broken: `form` fired on "information", "platform", and "performance", inflating
+Forms & error messages to 124 issues. With boundaries it sits at 31, and the difference
+went back to `General / unclassified` where it belongs.
+
+`classify_all()` returns every area an issue touches, in AREAS order. The first is the
+primary area used for grouping and the rest fill the "Also covers" column, since a modal
+dialog bug is genuinely both focus and screen reader work. About a quarter of rows carry
+more than one.
 
 The body is the awkward one. GraphQL cannot carry it in bulk: 100 issue nodes with
 `bodyText` returns `RESOURCE_LIMITS_EXCEEDED`, and dropping to 50 nodes traded that for a
 502 timeout. Issue bodies are unbounded, so there is no page size that makes this safe.
-The bulk search therefore classifies on title and labels only, and `refine_areas()` makes
-a second pass: one REST call per unplaced issue, capped at 150, eight at a time, soft so
-failures cost a row rather than the run. That pass moved 64 of 100 vague rows into a real
-specialty on the last run.
+The bulk search therefore classifies on title and labels only, and `refine_areas()` then
+reads every issue individually: one REST call each, capped at 600, eight in flight, soft
+so a failure costs a row rather than the run. 405 issues take about 35 seconds of the
+minute-long run.
 
 ## The unlabeled pass
 
