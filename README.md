@@ -103,10 +103,12 @@ Before those rules the top of the board was one account's two repos, at 1 and 22
 both under three months old. After them it is Orange-OpenSource, indico, WebKit, headlamp,
 scaleway, mozilla and Tailormap.
 
-One thing the rules deliberately do not do is hide maintainers. Someone with write access
-fixing accessibility in the project they maintain is doing real work, so they stay on the
-board with their role shown next to their name. You can see who is an outside contributor
-and who is a maintainer, and judge for yourself.
+Outside contributors and maintainers are listed as two separate groups rather than ranked
+against each other. Fixing accessibility in a project you do not maintain is the behaviour
+this site exists to grow, so that list leads. Maintainers keeping their own projects
+accessible are doing real work too, and having write access makes it easier to do, not
+less worth doing, so they get their own section instead of being filtered out or buried.
+Currently 32 outside contributors and 8 maintainers.
 
 `--scoreboard-min-age-days` and `--scoreboard-min-stars` change the thresholds. Both need
 a token, since they cost one metadata lookup per repo.

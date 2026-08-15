@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-14 21:56
+- Split the scoreboard into two groups instead of one ranking: **Outside contributors**
+  first, then **Maintainers, keeping their own projects accessible**. Fixing a project you
+  do not maintain is the behaviour worth growing, so it leads; write access makes the work
+  easier to do, not less worth doing, so maintainers keep a section rather than being
+  filtered out or buried mid-list.
+- CONTRIBUTORS.md split into two tables with the same reasoning stated
+- Current split: 32 outside contributors (52 fixes), 8 maintainers (22 fixes)
+- Files affected: `track_a11y.py`, `docs/index.html`, `CONTRIBUTORS.md`, `README.md`
+
 ## 2026-08-14 21:50
 - Better self-fix detection, which was the actual question: every search result carries
   `author_association`, so OWNER and MEMBER are now dropped outright. Comparing logins

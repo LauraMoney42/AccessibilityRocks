@@ -825,6 +825,16 @@ def write_contributors(fixers, out_path, site_url):
     people = (fixers or {}).get("people") or []
     now = datetime.now(timezone.utc)
 
+    outside = [p for p in people if p.get("role") != "maintainer"]
+    maintainers = [p for p in people if p.get("role") == "maintainer"]
+
+    def table(rows):
+        out = ["| # | Who | Fixes | Projects |", "| --- | --- | --- | --- |"]
+        for i, p in enumerate(rows, 1):
+            repos = ", ".join(f"[{r}](https://github.com/{r})" for r in p["repos"][:3])
+            out.append(f"| {i} | [@{p['login']}]({p['url']}) | {p['count']} | {repos} |")
+        return out
+
     lines = [
         "# Accessibility contributors",
         "",
@@ -835,44 +845,24 @@ def write_contributors(fixers, out_path, site_url):
         f"**{fixers.get('total', 0)} fixes** by **{len(people)} people**. "
         f"Regenerated every Monday from the GitHub API, so this list keeps moving.",
         "",
-        "| # | Who | Fixes | Role | Projects |",
-        "| --- | --- | --- | --- | --- |",
-    ]
-    for i, p in enumerate(people, 1):
-        repos = ", ".join(f"[{r}](https://github.com/{r})" for r in p["repos"][:3])
-        lines.append(f"| {i} | [@{p['login']}]({p['url']}) | {p['count']} | "
-                     f"{p.get('role', 'contributor')} | {repos} |")
+        "## Outside contributors",
+        "",
+        "Fixing accessibility in a project you do not maintain. This is the list this "
+        "site exists to grow.",
+        "",
+    ] + table(outside)
 
-    lines += [
-        "",
-        "## How to get on this list",
-        "",
-        f"1. Find an open accessibility issue at [AccessibilityRocks]({site_url}).",
-        "2. Fix it and get the pull request merged.",
-        "3. That is it. The next Monday refresh picks you up automatically.",
-        "",
-        "Only merged pull requests carrying an accessibility label count. Four rules keep "
-        "the ordering honest, and each exists because the version before it was gamed by "
-        "accident:",
-        "",
-        "- GitHub reports whether the author owns or belongs to the repo, and both are "
-        "dropped. A name comparison catches `alice/project`; this also catches "
-        "`alice-labs/project`.",
-        f"- Each owner counts at most {fixers.get('cap', 3)} times, so helping several "
-        "projects beats grinding one backlog.",
-        f"- Repos younger than {fixers.get('min_age_days', 365)} days are left out. This "
-        "replaced a star floor, which punished small projects that have been quietly "
-        "maintained for years. The repos being farmed were under three months old; the "
-        "real ones were three to fifteen years old.",
-        "- Distinct owners are counted, not repos, since two repos under one account is "
-        "one relationship.",
-        "",
-        "Two merged pull requests also earns you GitHub's own Pull Shark achievement, "
-        "which lands on your profile rather than only here.",
-        "",
-        f"<sub>Last updated {now.strftime('%Y-%m-%d %H:%M UTC')}.</sub>",
-        "",
-    ]
+    if maintainers:
+        lines += [
+            "",
+            "## Maintainers",
+            "",
+            "Keeping accessibility working in the projects they maintain. Listed "
+            "separately rather than ranked against outside contributions, because "
+            "having write access makes the work easier to do, not less worth doing.",
+            "",
+        ] + table(maintainers)
+
     with open(out_path, "w") as fh:
         fh.write("\n".join(lines))
     return len(people)
