@@ -81,24 +81,15 @@
   .meta { font-size: 12px; color: var(--muted); margin-top: auto; }
   .actions { display: flex; gap: 6px; flex-wrap: wrap; }
   .actions button { font-size: 13px; padding: 6px 10px; }
-  .card.claimed { outline: 2px solid var(--accent); }
 
   .panel {
     background: var(--card); border: 1px solid var(--line); border-radius: 12px;
     padding: 16px; margin: 16px 0 20px;
   }
   .panel h2 { margin: 0 0 4px; font-size: 17px; }
-  .tiers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .tier { padding: 6px 10px; border-radius: 8px; background: var(--chip); color: var(--chip-ink); font-size: 13px; }
-  .tier.off {
-    background: transparent; color: var(--muted);
-    border: 1px dashed var(--control-line);
-  }
-  .mylist { margin: 10px 0 0; padding-left: 18px; }
-  .mylist li { margin-bottom: 4px; }
   textarea {
-    width: 100%; min-height: 108px; margin-top: 10px; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+    width: 100%; min-height: 150px; margin-top: 10px; border-radius: 8px;
+    border: 1px solid var(--control-line); background: var(--bg); color: var(--ink);
     padding: 10px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 14px; }
@@ -120,8 +111,6 @@
   .board .who { font-weight: 600; text-decoration: none; color: inherit; }
   .board .who:hover { text-decoration: underline; }
   .board .stat { color: var(--muted); font-size: 11px; }
-  .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .badges img { height: 20px; }
   a { color: var(--accent); }
 </style>
 </head>
@@ -157,27 +146,20 @@
     <ol class="board" id="boardlist" role="list" aria-label="Top accessibility fixers"></ol>
     <p class="sub small">Merged pull requests carrying an accessibility label, from the
     GitHub API. Each project counts at most five fixes, so one backlog cannot own the
-    board, and fixes to your own repos are not counted.</p>
-  </div>
+    board, and fixes to your own repos are not counted.
+    <a href="https://github.com/LauraMoney42/AccessibilityRocks/blob/main/CONTRIBUTORS.md"
+       target="_blank" rel="noopener">See everyone on the contributors wall</a>.</p>
 
-  <div class="panel" id="credit">
-    <h2>On the wall? Bring someone with you</h2>
-    <p class="sub">Everyone who merges a fix lands on the
-    <a id="walllink" href="#">contributors wall</a>, a real page in the repo, not a number
-    only this site recognizes. Check your username to unlock a post that invites other
-    people to join you.</p>
     <div class="actions">
-      <label class="check" for="ghuser">GitHub username</label>
+      <button class="primary" id="post">Make a Post</button>
+    </div>
+    <div class="actions" id="postbox" hidden>
+      <label class="check" for="ghuser">Your GitHub username</label>
       <input id="ghuser" type="text" autocomplete="username" spellcheck="false"
              placeholder="your-username" aria-describedby="vstatus">
-      <button class="primary" id="verify">Check the scoreboard</button>
+      <button id="draft">Write it</button>
     </div>
     <p class="sub" id="vstatus" role="status" aria-live="polite"></p>
-    <div class="tiers" id="tiers"></div>
-    <div class="actions" id="creditactions" hidden>
-      <button class="primary" id="post">Write a post inviting others</button>
-      <button id="signout">Not me</button>
-    </div>
     <textarea id="posttext" hidden readonly aria-label="Your draft LinkedIn post"></textarea>
   </div>
 
@@ -196,9 +178,7 @@
 </main>
 
 <script>
-const VERIFIED = "a11y-verified-v1";
 let DATA = { issues: [], areas: [], generated: "" };
-let me = JSON.parse(localStorage.getItem(VERIFIED) || "null");
 const PAGE = 100;      // tab stops, not bytes: 300 cards is ~900 stops to pass through
 let shown = PAGE;
 
@@ -206,12 +186,6 @@ const $ = id => document.getElementById(id);
 const days = iso => Math.round((Date.now() - new Date(iso + "T00:00:00Z")) / 86400000);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-// Milestones count merged accessibility fixes that GitHub confirms, not clicks
-// on this page. A bookmark is not an achievement.
-const TIERS = [
-  [1, "First fix merged"], [3, "Three merged"], [5, "Five merged"],
-  [10, "Ten merged"], [25, "Twenty five merged"]
-];
 
 function load() {
   fetch("data.json")
@@ -234,6 +208,13 @@ function init() {
   for (const el of ["q", "area", "lang", "sort", "gfi", "unlab", "big"]) {
     $(el).addEventListener("input", () => { shown = PAGE; render(); });
   }
+  $("post").addEventListener("click", () => {
+    $("postbox").hidden = false;
+    $("ghuser").focus();
+  });
+  $("draft").addEventListener("click", makePost);
+  $("ghuser").addEventListener("keydown", e => { if (e.key === "Enter") makePost(); });
+
   $("more").addEventListener("click", () => {
     const first = shown;
     shown += PAGE;
@@ -242,18 +223,77 @@ function init() {
     document.querySelectorAll(".card .chip")[first]?.focus();
   });
   renderBoard();
-  $("post").addEventListener("click", writePost);
-  $("verify").addEventListener("click", checkBoard);
-  $("ghuser").addEventListener("keydown", e => { if (e.key === "Enter") checkBoard(); });
-  $("signout").addEventListener("click", () => {
-    me = null; localStorage.removeItem(VERIFIED); $("ghuser").value = ""; renderCredit();
-  });
-  if (me) $("ghuser").value = me.login;
-  // Same repo, so derive it rather than hardcoding a URL that would rot in a fork.
-  $("walllink").href = DATA.wall ||
-    "https://github.com/LauraMoney42/AccessibilityRocks/blob/main/CONTRIBUTORS.md";
-  renderCredit();
   render();
+}
+
+async function makePost() {
+  const login = $("ghuser").value.trim().replace(/^@/, "");
+  if (!login) { $("vstatus").textContent = "Type your GitHub username first."; return; }
+
+  $("draft").disabled = true;
+  $("vstatus").textContent = "Looking up your merged accessibility fixes...";
+
+  const q = `label:accessibility,a11y,"accessibility issue" is:pr is:merged author:${login}`;
+  let data;
+  try {
+    const res = await fetch("https://api.github.com/search/issues?per_page=20&q=" +
+                            encodeURIComponent(q));
+    // 422 means GitHub cannot resolve the author, which is a typo, not an outage.
+    if (res.status === 422) {
+      $("vstatus").textContent = `GitHub has no account called "${login}".`;
+      return;
+    }
+    if (res.status === 403) {
+      $("vstatus").textContent = "GitHub is rate limiting anonymous lookups. Try again in a minute.";
+      return;
+    }
+    if (!res.ok) throw new Error(res.status);
+    data = await res.json();
+  } catch (e) {
+    $("vstatus").textContent = "Could not reach GitHub just now. Try again shortly.";
+    return;
+  } finally {
+    $("draft").disabled = false;
+  }
+
+  const count = data.total_count || 0;
+  if (!count) {
+    $("vstatus").textContent =
+      `No merged accessibility fixes found for ${login} yet. The post quotes real numbers, ` +
+      `so it needs at least one. GitHub search can lag a few minutes behind a fresh merge.`;
+    $("posttext").hidden = true;
+    return;
+  }
+
+  const repos = [...new Set((data.items || [])
+    .map(i => i.repository_url.split("/").slice(-2).join("/")))];
+  // A post drafted from a local copy must still link somewhere a reader can go.
+  const site = /^(localhost|127\.|\[?::1)/.test(location.hostname)
+    ? "https://lauramoney42.github.io/AccessibilityRocks/"
+    : location.href.split("#")[0].split("?")[0];
+  const one = count === 1;
+
+  const text =
+`Contribute to AccessibilityRocks with me.
+
+I have merged ${count} accessibility fix${one ? "" : "es"} into open source${repos.length > 1 ? ` across ${repos.length} projects` : ""}${repos.length ? `, including ${repos.slice(0, 3).join(", ")}` : ""}. Every one of them removed a real barrier for somebody using a screen reader, a keyboard, or other assistive tech.
+
+These projects are maintained by volunteers who are already stretched thin, so one fix reaches a lot of people.
+
+If you write code, there is a list of open accessibility issues here, sorted by specialty and marked up with good first issues:
+${site}`;
+
+  const box = $("posttext");
+  box.value = text;
+  box.hidden = false;
+  box.focus();
+  box.select();
+  $("vstatus").textContent =
+    `${count} merged fix${one ? "" : "es"} found. Post copied, opening LinkedIn: paste it there.`;
+  try { await navigator.clipboard.writeText(text); } catch (e) { /* select() is the fallback */ }
+  // LinkedIn strips prefilled text from share URLs, so the composer opens empty.
+  setTimeout(() => window.open("https://www.linkedin.com/feed/?shareActive=true",
+                               "_blank", "noopener"), 400);
 }
 
 function renderBoard() {
@@ -330,127 +370,9 @@ function card(i) {
 
 
 
-async function checkBoard() {
-  const login = $("ghuser").value.trim().replace(/^@/, "");
-  if (!login) { $("vstatus").textContent = "Type your GitHub username first."; return; }
-
-  // The weekly data file only holds the top of a 90-day window, so a miss there
-  // is not an answer. Ask GitHub directly, which also covers fixes older than
-  // the window and people outside the top 40.
-  const local = (DATA.fixers?.people || [])
-    .find(p => p.login.toLowerCase() === login.toLowerCase());
-
-  $("verify").disabled = true;
-  $("vstatus").textContent = "Checking GitHub for merged accessibility fixes...";
-
-  const q = `label:accessibility,a11y,"accessibility issue" is:pr is:merged author:${login}`;
-  try {
-    const res = await fetch("https://api.github.com/search/issues?per_page=20&q=" +
-                            encodeURIComponent(q));
-    if (res.status === 403) {
-      $("vstatus").textContent =
-        "GitHub is rate limiting anonymous checks right now. Try again in a minute.";
-      return;
-    }
-    // GitHub answers 422 when the author qualifier names an account it cannot
-    // find, which is a spelling problem, not an outage. Say which.
-    if (res.status === 422) {
-      me = null;
-      localStorage.removeItem(VERIFIED);
-      $("vstatus").textContent =
-        `GitHub has no account called "${login}". Check the spelling and try again.`;
-      renderCredit();
-      return;
-    }
-    if (!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    const count = data.total_count || 0;
-
-    if (!count) {
-      me = null;
-      localStorage.removeItem(VERIFIED);
-      $("vstatus").textContent =
-        `No merged accessibility fixes found for ${login} yet. Ship one and this unlocks. ` +
-        `If you just merged something, GitHub search can take a few minutes to catch up.`;
-      renderCredit();
-      return;
-    }
-
-    const repos = [...new Set((data.items || [])
-      .map(i => i.repository_url.split("/").slice(-2).join("/")))];
-    me = {
-      login,
-      count,
-      repos: repos.slice(0, 5),
-      projects: repos.length,
-      rank: local ? (DATA.fixers.people.indexOf(local) + 1) : null,
-      at: new Date().toISOString().slice(0, 10),
-    };
-    localStorage.setItem(VERIFIED, JSON.stringify(me));
-    renderCredit();
-  } catch (e) {
-    $("vstatus").textContent = "Could not reach GitHub just now. Try again shortly.";
-  } finally {
-    $("verify").disabled = false;
-  }
-}
-
-function renderCredit() {
-  const n = me ? me.count : 0;
-  $("creditactions").hidden = !me;
-  if (!me) $("posttext").hidden = true;
-
-  if (me) {
-    $("vstatus").textContent =
-      `${me.login}: ${me.count} merged accessibility fix${me.count === 1 ? "" : "es"}` +
-      (me.rank ? `, currently number ${me.rank} on the 90 day board.` : ".") +
-      " The post writer is unlocked.";
-  }
-
-  $("tiers").innerHTML = TIERS.map(([need, name]) =>
-    `<span class="tier ${n >= need ? "" : "off"}">${name}</span>`).join("");
-}
 
 
-function writePost() {
-  if (!me) return;
-  // A post drafted from a local copy must still link somewhere a reader can go.
-  const site = /^(localhost|127\.|\[?::1)/.test(location.hostname)
-    ? "https://lauramoney42.github.io/AccessibilityRocks/"
-    : location.href.split("#")[0].split("?")[0];
-  const one = me.count === 1;
-  const text =
-`Contribute to AccessibilityRocks with me.
 
-I have merged ${me.count} accessibility fix${one ? "" : "es"} into open source${me.projects > 1 ? ` across ${me.projects} projects` : ""}${me.repos.length ? `, including ${me.repos.slice(0, 3).join(", ")}` : ""}. Every one of them removed a real barrier for somebody using a screen reader, a keyboard, or other assistive tech.
-
-These projects are maintained by volunteers who are already stretched thin, so one fix reaches a lot of people.
-
-If you write code, there is a list of open accessibility issues here, sorted by specialty and marked up with good first issues:
-${site}
-
-Pick one. Two merged pull requests also earns you GitHub's Pull Shark badge, and everyone who ships a fix lands on the contributors wall.
-
-Who is in?
-
-#accessibility #a11y #opensource`;
-
-  const box = $("posttext");
-  box.value = text;
-  box.hidden = false;
-  box.focus();
-  box.select();
-  try {
-    navigator.clipboard.writeText(text);
-    $("post").textContent = "Copied, opening LinkedIn";
-  } catch (e) {
-    $("post").textContent = "Copy the text below";
-  }
-  // LinkedIn strips prefilled text from share URLs, so the post is on the
-  // clipboard and the composer opens empty. Paste is one keystroke.
-  setTimeout(() => window.open("https://www.linkedin.com/feed/?shareActive=true", "_blank", "noopener"), 400);
-  setTimeout(() => { $("post").textContent = "Write a post inviting others"; }, 4000);
-}
 
 load();
 </script>

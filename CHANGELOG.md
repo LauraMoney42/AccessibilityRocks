@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-14 21:45
+- Removed the "On the wall? Bring someone with you" panel: markup, verification state,
+  milestone chips, and the stored username. The contributors wall link moved onto the
+  scoreboard so nothing was lost with it.
+- Replaced it with a single **Make a Post** button under the scoreboard. It reveals one
+  username field, checks GitHub for merged accessibility fixes, and drafts the post from
+  real counts. Zero merged fixes means no post, since the text quotes numbers.
+- Post wording trimmed to the four paragraphs and the link, with the Pull Shark line and
+  the sign-off dropped
+- Files affected: `docs/index.html`, `README.md`
+
 ## 2026-08-14 21:35
 - Removed the "I'm on it" shortlist entirely: buttons, panel, localStorage, and the
   toggle code. It was a bookmark that looked like a claim, and recognition now comes from

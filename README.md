@@ -93,15 +93,14 @@ contributors wall, regenerated every Monday. That is a real page in a real repo:
 indexed, and worth more than a counter only this site recognizes. Two merged pull requests
 also earns GitHub's own Pull Shark achievement, which lands on the contributor's profile.
 
-**The LinkedIn post writer is locked until you are on the scoreboard.** Enter a GitHub
-username, and the page asks the API directly for merged pull requests carrying an
-accessibility label. No merges, no post. Picking issues unlocks nothing: shipping does.
-The draft quotes real numbers and then invites other people in: it opens with "Contribute
-to AccessibilityRocks with me", names what they fixed, and links the issue list. The
-milestone chips count merged fixes, not clicks.
+**Make a Post** sits under the scoreboard. It asks for a GitHub username, checks the API
+for merged pull requests carrying an accessibility label, and drafts a LinkedIn post from
+the real numbers: "Contribute to AccessibilityRocks with me", what they fixed, and a link
+to the issue list. No merged fixes means no post, since the text quotes counts that have
+to be true.
 
-The post is copied to the clipboard rather than passed in the share URL, because LinkedIn
-strips prefilled text.
+The draft is copied to the clipboard rather than passed in the share URL, because LinkedIn
+strips prefilled text from share links.
 
 ## Three ways to use it
 
