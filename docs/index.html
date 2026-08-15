@@ -8,14 +8,14 @@
 <style>
   :root {
     --bg: #fbfbfd; --card: #fff; --ink: #14161a; --muted: #5c6470;
-    --line: #e3e6ec; --accent: #1f5fd0; --accent-ink: #fff;
+    --line: #e3e6ec; --control-line: #6e7683; --accent: #1f5fd0; --accent-ink: #fff;
     --chip: #eef2fb; --chip-ink: #26467f; --warm: #fff6e0; --warm-ink: #7a5300;
     --good: #e6f4ea; --good-ink: #146b34;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #0f1115; --card: #171a21; --ink: #eef0f4; --muted: #98a1b0;
-      --line: #262b35; --accent: #6ea0ff; --accent-ink: #0f1115;
+      --line: #262b35; --control-line: #8791a1; --accent: #6ea0ff; --accent-ink: #0f1115;
       --chip: #1d2532; --chip-ink: #9dbcff; --warm: #2c2410; --warm-ink: #f0c765;
       --good: #122c1c; --good-ink: #7fd39b;
     }
@@ -39,8 +39,22 @@
   }
   input, select, button {
     font: inherit; color: var(--ink); background: var(--card);
-    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+    border: 1px solid var(--control-line); border-radius: 8px; padding: 8px 10px;
   }
+  /* A visible, high-contrast focus ring in both themes. The browser default can
+     vanish against a dark card, and this page is about not doing that. */
+  :focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  .skip {
+    position: absolute; left: -9999px; top: 0; background: var(--card);
+    color: var(--ink); padding: 10px 14px; border-radius: 0 0 8px 0; z-index: 20;
+  }
+  .skip:focus { left: 0; }
+  /* Sticky filter bar must not cover whatever the keyboard just moved to. */
+  .card, .board li, h2 { scroll-margin-top: 120px; }
   input[type=search] { flex: 1 1 220px; min-width: 160px; }
   button { cursor: pointer; }
   button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
@@ -76,7 +90,10 @@
   .panel h2 { margin: 0 0 4px; font-size: 17px; }
   .tiers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
   .tier { padding: 6px 10px; border-radius: 8px; background: var(--chip); color: var(--chip-ink); font-size: 13px; }
-  .tier.off { opacity: .38; }
+  .tier.off {
+    background: transparent; color: var(--muted);
+    border: 1px dashed var(--control-line);
+  }
   .mylist { margin: 10px 0 0; padding-left: 18px; }
   .mylist li { margin-bottom: 4px; }
   textarea {
@@ -101,6 +118,7 @@
 </style>
 </head>
 <body>
+<a class="skip" href="#results">Skip to the issue list</a>
 <header>
   <h1>Accessibility issues that need help</h1>
   <p class="sub">Open accessibility work in independent open source projects. Big-company
@@ -108,8 +126,8 @@
   <p class="sub" id="stamp"></p>
 </header>
 
-<div class="wrap">
-  <div class="bar">
+<main class="wrap">
+  <div class="bar" role="search">
     <input type="search" id="q" placeholder="Search title, repo, or label" aria-label="Search issues">
     <select id="area" aria-label="Filter by specialty"><option value="">All specialties</option></select>
     <select id="lang" aria-label="Filter by language"><option value="">Any language</option></select>
@@ -127,27 +145,30 @@
 
   <div class="panel" id="me">
     <h2>Your list</h2>
-    <p class="sub" id="mestat">Nothing picked yet. Hit "I'm on it" on any issue to start a list.</p>
+    <p class="sub" id="mestat" role="status" aria-live="polite">Nothing picked yet. Hit "I'm on it" on any issue to start a list.</p>
     <div class="tiers" id="tiers"></div>
     <ol class="mylist" id="mylist"></ol>
     <div class="actions" id="meactions" hidden>
       <button class="primary" id="post">Write my LinkedIn post</button>
       <button id="clear">Clear list</button>
     </div>
-    <textarea id="posttext" hidden readonly aria-label="Draft post"></textarea>
+    <textarea id="posttext" hidden readonly aria-label="Your draft LinkedIn post"></textarea>
   </div>
 
   <div class="panel" id="board">
     <h2>Who has been fixing these</h2>
     <p class="sub" id="boardsub"></p>
-    <ol class="board" id="boardlist"></ol>
+    <ol class="board" id="boardlist" role="list"></ol>
     <p class="sub small">Merged pull requests carrying an accessibility label, straight
     from the GitHub API. Ranked with each project counting at most five fixes, so one
     project's backlog cannot own the board. Fixes to your own repos are not counted.</p>
   </div>
 
-  <p class="counts" id="counts"></p>
-  <div class="grid" id="grid"></div>
+  <p class="counts" id="counts" role="status" aria-live="polite"></p>
+  <div class="grid" id="results" tabindex="-1"></div>
+  <div class="actions" id="morewrap" hidden>
+    <button id="more"></button>
+  </div>
 
   <p class="counts" id="empty" hidden>Nothing matches those filters.</p>
 
@@ -155,12 +176,14 @@
     <p>Data refreshes weekly from the GitHub API. Star counts and labels come straight
     from each project. Your list is stored only in this browser: no account, no server.</p>
   </footer>
-</div>
+</main>
 
 <script>
 const STORE = "a11y-picks-v1";
 let DATA = { issues: [], areas: [], generated: "" };
 let picks = JSON.parse(localStorage.getItem(STORE) || "[]");
+const PAGE = 100;      // tab stops, not bytes: 300 cards is ~900 stops to pass through
+let shown = PAGE;
 
 const $ = id => document.getElementById(id);
 const days = iso => Math.round((Date.now() - new Date(iso + "T00:00:00Z")) / 86400000);
@@ -192,8 +215,15 @@ function init() {
   for (const l of langs) $("lang").add(new Option(l, l));
 
   for (const el of ["q", "area", "lang", "sort", "gfi", "unlab", "big"]) {
-    $(el).addEventListener("input", render);
+    $(el).addEventListener("input", () => { shown = PAGE; render(); });
   }
+  $("more").addEventListener("click", () => {
+    const first = shown;
+    shown += PAGE;
+    render();
+    // Land the keyboard on the first newly revealed card, not back at the top.
+    document.querySelectorAll(".card button")[first]?.focus();
+  });
   renderBoard();
   $("post").addEventListener("click", writePost);
   $("clear").addEventListener("click", () => {
@@ -243,11 +273,15 @@ const SORTS = {
 
 function render() {
   const list = DATA.issues.filter(matches).sort(SORTS[$("sort").value]);
-  $("counts").textContent = list.length + " issue" + (list.length === 1 ? "" : "s") +
-    " · " + list.filter(i => i.gfi).length + " tagged good first issue";
+  $("counts").textContent = `${list.length} issue${list.length === 1 ? "" : "s"}` +
+    ` · ${list.filter(i => i.gfi).length} tagged good first issue` +
+    (list.length > shown ? ` · showing the first ${shown}` : "");
   $("empty").hidden = list.length > 0;
 
-  $("grid").innerHTML = list.slice(0, 300).map(card).join("");
+  $("results").innerHTML = list.slice(0, shown).map(card).join("");
+  const left = list.length - shown;
+  $("morewrap").hidden = left <= 0;
+  $("more").textContent = `Show ${Math.min(left, PAGE)} more of ${list.length}`;
   for (const btn of document.querySelectorAll("[data-pick]")) {
     btn.addEventListener("click", () => toggle(btn.dataset.pick));
   }
@@ -270,7 +304,7 @@ function card(i) {
     </div>
     <div class="meta">opened ${esc(i.created)} · quiet for ${days(i.updated)} days · ${i.comments} comments</div>
     <div class="actions">
-      <button data-pick="${esc(i.url)}">${picked ? "On your list" : "I'm on it"}</button>
+      <button data-pick="${esc(i.url)}" aria-pressed="${picked}">${picked ? "On your list" : "I'm on it"}</button>
       <a class="chip" href="${esc(i.url)}" target="_blank" rel="noopener">Open issue</a>
     </div>
   </article>`;
@@ -323,6 +357,7 @@ If you write code and want somewhere useful to start, accessibility issues are a
   const box = $("posttext");
   box.value = text;
   box.hidden = false;
+  box.focus();
   box.select();
   try {
     navigator.clipboard.writeText(text);

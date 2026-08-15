@@ -51,6 +51,31 @@ To host it free on GitHub Pages from your own repo:
 It then refreshes itself every Monday. The workflow uses the built-in Actions token, so
 there is no secret to create, and `docs/data.json` only ever contains public issues.
 
+## Is the dashboard itself accessible?
+
+It would be a bad look otherwise. What was checked and fixed:
+
+| Check | Result |
+| --- | --- |
+| Landmarks | `header`, `main`, `footer`, and a search region |
+| Skip link | Skips the filter bar straight to the results, which take focus |
+| Keyboard | Every control reachable, all named, focus ring 3px at 5.6:1 (light) and 7.3:1 (dark) |
+| Toggle state | "I'm on it" buttons expose `aria-pressed`, so state is announced |
+| Live regions | Result counts and list changes announce instead of changing silently |
+| Contrast | All text at least 4.5:1 in both themes; control borders raised to 4.4:1 for WCAG 1.4.11 |
+| List semantics | `role="list"` where `list-style: none` would otherwise strip it in VoiceOver |
+| Volume | Results page at 100, cutting roughly 900 tab stops to about 300 |
+| Motion | No animation, so nothing to reduce |
+
+Two things were genuinely broken and are now fixed: control borders sat at 1.2:1 against
+the background, which fails 1.4.11 since inputs share the page background and the border
+*is* the control boundary; and the milestone chips used `opacity: .38`, which drags text
+under the contrast floor. Dashed borders replaced the opacity.
+
+**Not yet done:** no test with a real screen reader. The checks above are structural,
+keyboard, and contrast, run in a browser. VoiceOver and NVDA passes are the obvious next
+step, and if you find something, [open an issue](../../issues).
+
 ## The scoreboard
 
 The dashboard ranks people who actually merged accessibility fixes in the last 90 days.

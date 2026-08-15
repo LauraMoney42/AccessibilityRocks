@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-14 21:20
+- Audited the dashboard's own accessibility and fixed everything found:
+  - Added `main` landmark, a skip link, and a focusable results target
+  - Added `aria-pressed` to the 300 pick buttons so toggle state is announced
+  - Added live regions for the result count and list changes
+  - Added a 3px `:focus-visible` ring, verified with a real keyboard tab
+  - Added `role="list"` where `list-style: none` strips list semantics in VoiceOver
+- Fixed two real contrast failures: control borders were 1.2:1 against the page, failing
+  WCAG 1.4.11 because inputs share the page background and the border is the only
+  boundary; and milestone chips used `opacity: .38`, dropping text below 4.5:1
+- Results now page at 100 with a "Show more" button that moves focus to the first new
+  card, cutting roughly 900 tab stops to about 300
+- Known gap, stated in the README: no real screen reader test yet
+- Files affected: `docs/index.html`, `README.md`
+
 ## 2026-08-14 21:09
 - Published to https://github.com/LauraMoney42/AccessibilityRocks with Pages serving
   /docs, live at https://lauramoney42.github.io/AccessibilityRocks/

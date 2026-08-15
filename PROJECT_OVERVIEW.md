@@ -97,6 +97,24 @@ tracks picks in `localStorage` and the milestone labels describe exactly that. T
 LinkedIn button drafts the post and copies it to the clipboard rather than passing text in
 the URL, because LinkedIn strips prefilled share text.
 
+## Accessibility of the dashboard itself
+
+Audited with a scripted structural pass in the browser, a real keyboard tab through the
+focus order, and contrast maths over the palette. Findings that were real bugs:
+
+- **Control borders at 1.2:1.** Inputs sit on a background nearly identical to their own,
+  so the border is the entire visual boundary and WCAG 1.4.11 wants 3:1. Added
+  `--control-line` at 4.4:1 light and 5.9:1 dark.
+- **`opacity: .38` on unearned milestones.** Opacity blends text toward the background and
+  quietly fails contrast. Replaced with a dashed border and muted colour.
+- **300 toggle buttons with no state.** Added `aria-pressed`.
+- **Silent filtering.** Result counts now live in a `role="status"` region.
+- **900 tab stops.** Results page at 100, and "Show more" moves focus to the first new card.
+
+`:focus-visible` had to be verified with an actual Tab keypress: programmatic `.focus()`
+does not match it in Chrome, so a scripted check reports no outline even when the ring
+works.
+
 ## Spreadsheet mechanics
 
 Dates are written as `datetime` values with a `yyyy-mm-dd` number format, not strings.
