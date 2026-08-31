@@ -1,8 +1,8 @@
 # Accessibility contributors
 
-People who merged accessibility fixes into open source projects in the last 90 days, counted from 2026-05-26.
+People who merged accessibility fixes into open source projects in the last 90 days, counted from 2026-06-02.
 
-**72 fixes** by **39 people**. Regenerated every Monday from the GitHub API, so this list keeps moving.
+**123 fixes** by **37 people**. Regenerated every Monday from the GitHub API, so this list keeps moving.
 
 ## Outside contributors
 
@@ -10,36 +10,35 @@ Fixing accessibility in a project you do not maintain. This is the list this sit
 
 | # | Who | Fixes | Projects |
 | --- | --- | --- | --- |
-| 1 | [@illume](https://github.com/illume) | 9 | [kubernetes-sigs/headlamp](https://github.com/kubernetes-sigs/headlamp) |
-| 2 | [@lizhsr](https://github.com/lizhsr) | 7 | [SimisRnD/simis-cms](https://github.com/SimisRnD/simis-cms) |
-| 3 | [@dpino](https://github.com/dpino) | 4 | [WebKit/WebKit](https://github.com/WebKit/WebKit) |
-| 4 | [@trasher](https://github.com/trasher) | 4 | [glpi-project/glpi](https://github.com/glpi-project/glpi) |
-| 5 | [@clesausse2-pass](https://github.com/clesausse2-pass) | 3 | [pass-culture/pass-culture-app-native](https://github.com/pass-culture/pass-culture-app-native) |
-| 6 | [@rootp1](https://github.com/rootp1) | 3 | [kubernetes-sigs/headlamp](https://github.com/kubernetes-sigs/headlamp) |
-| 7 | [@calixteman](https://github.com/calixteman) | 2 | [mozilla/pdf.js](https://github.com/mozilla/pdf.js) |
-| 8 | [@J-Sek](https://github.com/J-Sek) | 2 | [vuetifyjs/vuetify](https://github.com/vuetifyjs/vuetify) |
-| 9 | [@kristian-zendato](https://github.com/kristian-zendato) | 2 | [nextcloud/server](https://github.com/nextcloud/server), [nextcloud/groupfolders](https://github.com/nextcloud/groupfolders) |
-| 10 | [@metaarts](https://github.com/metaarts) | 2 | [IHK-GfI/lux-components-workspace](https://github.com/IHK-GfI/lux-components-workspace) |
-| 11 | [@minorninth](https://github.com/minorninth) | 2 | [WebKit/WebKit](https://github.com/WebKit/WebKit) |
-| 12 | [@steinkobben](https://github.com/steinkobben) | 2 | [Tailormap/tailormap-viewer](https://github.com/Tailormap/tailormap-viewer) |
-| 13 | [@twilco](https://github.com/twilco) | 2 | [WebKit/WebKit](https://github.com/WebKit/WebKit) |
-| 14 | [@adamwoodnz](https://github.com/adamwoodnz) | 1 | [Automattic/wp-calypso](https://github.com/Automattic/wp-calypso) |
-| 15 | [@Anexus5919](https://github.com/Anexus5919) | 1 | [mui/mui-x](https://github.com/mui/mui-x) |
-| 16 | [@BF150](https://github.com/BF150) | 1 | [public-ui/kolibri](https://github.com/public-ui/kolibri) |
-| 17 | [@connorjjarvis](https://github.com/connorjjarvis) | 1 | [MudBlazor/MudBlazor](https://github.com/MudBlazor/MudBlazor) |
-| 18 | [@d-suvorov-vk-team](https://github.com/d-suvorov-vk-team) | 1 | [VKCOM/VKUI](https://github.com/VKCOM/VKUI) |
-| 19 | [@f2cmb](https://github.com/f2cmb) | 1 | [glpi-project/glpi](https://github.com/glpi-project/glpi) |
-| 20 | [@ghazwan-gt](https://github.com/ghazwan-gt) | 1 | [LifeSG/react-design-system](https://github.com/LifeSG/react-design-system) |
-| 21 | [@gonzoblasco](https://github.com/gonzoblasco) | 1 | [mui/material-ui](https://github.com/mui/material-ui) |
-| 22 | [@hannahbergam](https://github.com/hannahbergam) | 1 | [code-dot-org/code-dot-org](https://github.com/code-dot-org/code-dot-org) |
-| 23 | [@InnaAtanasova](https://github.com/InnaAtanasova) | 1 | [SAP/fundamental-ngx](https://github.com/SAP/fundamental-ngx) |
-| 24 | [@mgorse](https://github.com/mgorse) | 1 | [WebKit/WebKit](https://github.com/WebKit/WebKit) |
-| 25 | [@moshebaricdo](https://github.com/moshebaricdo) | 1 | [code-dot-org/code-dot-org](https://github.com/code-dot-org/code-dot-org) |
-| 26 | [@phmatray](https://github.com/phmatray) | 1 | [MudBlazor/MudBlazor](https://github.com/MudBlazor/MudBlazor) |
-| 27 | [@thatlkat](https://github.com/thatlkat) | 1 | [civiform/civiform](https://github.com/civiform/civiform) |
-| 28 | [@unichronic](https://github.com/unichronic) | 1 | [kubernetes-sigs/headlamp](https://github.com/kubernetes-sigs/headlamp) |
-| 29 | [@unlikelyzero](https://github.com/unlikelyzero) | 1 | [kubernetes-sigs/headlamp](https://github.com/kubernetes-sigs/headlamp) |
-| 30 | [@waterWang](https://github.com/waterWang) | 1 | [mui/material-ui](https://github.com/mui/material-ui) |
+| 1 | [@lizhsr](https://github.com/lizhsr) | 55 | [SimisRnD/simis-cms](https://github.com/SimisRnD/simis-cms) |
+| 2 | [@minorninth](https://github.com/minorninth) | 5 | [WebKit/WebKit](https://github.com/WebKit/WebKit) |
+| 3 | [@Annett7811](https://github.com/Annett7811) | 3 | [ILIAS-eLearning/ILIAS](https://github.com/ILIAS-eLearning/ILIAS) |
+| 4 | [@f2cmb](https://github.com/f2cmb) | 3 | [glpi-project/glpi](https://github.com/glpi-project/glpi) |
+| 5 | [@hannahbergam](https://github.com/hannahbergam) | 3 | [code-dot-org/code-dot-org](https://github.com/code-dot-org/code-dot-org) |
+| 6 | [@mustafajw07](https://github.com/mustafajw07) | 3 | [mui/mui-x](https://github.com/mui/mui-x) |
+| 7 | [@twilco](https://github.com/twilco) | 3 | [WebKit/WebKit](https://github.com/WebKit/WebKit) |
+| 8 | [@kristian-zendato](https://github.com/kristian-zendato) | 2 | [nextcloud/server](https://github.com/nextcloud/server) |
+| 9 | [@nikkimk](https://github.com/nikkimk) | 2 | [adobe/spectrum-web-components](https://github.com/adobe/spectrum-web-components) |
+| 10 | [@atomiks](https://github.com/atomiks) | 1 | [mui/base-ui](https://github.com/mui/base-ui) |
+| 11 | [@azeng4499](https://github.com/azeng4499) | 1 | [mui/base-ui](https://github.com/mui/base-ui) |
+| 12 | [@brianteeman](https://github.com/brianteeman) | 1 | [joomla/joomla-cms](https://github.com/joomla/joomla-cms) |
+| 13 | [@cannycookie](https://github.com/cannycookie) | 1 | [filamentphp/filament](https://github.com/filamentphp/filament) |
+| 14 | [@clesausse2-pass](https://github.com/clesausse2-pass) | 1 | [pass-culture/pass-culture-app-native](https://github.com/pass-culture/pass-culture-app-native) |
+| 15 | [@d-suvorov-vk-team](https://github.com/d-suvorov-vk-team) | 1 | [VKCOM/VKUI](https://github.com/VKCOM/VKUI) |
+| 16 | [@erinchambers](https://github.com/erinchambers) | 1 | [CDRH/chesnutt](https://github.com/CDRH/chesnutt) |
+| 17 | [@faurevid](https://github.com/faurevid) | 1 | [Skyscanner/backpack-ios](https://github.com/Skyscanner/backpack-ios) |
+| 18 | [@gonzoblasco](https://github.com/gonzoblasco) | 1 | [mui/material-ui](https://github.com/mui/material-ui) |
+| 19 | [@GVodyanov](https://github.com/GVodyanov) | 1 | [nextcloud-libraries/nextcloud-vue](https://github.com/nextcloud-libraries/nextcloud-vue) |
+| 20 | [@iamgabrielma](https://github.com/iamgabrielma) | 1 | [woocommerce/woocommerce-ios](https://github.com/woocommerce/woocommerce-ios) |
+| 21 | [@InnaAtanasova](https://github.com/InnaAtanasova) | 1 | [SAP/fundamental-ngx](https://github.com/SAP/fundamental-ngx) |
+| 22 | [@lbeneston-pass](https://github.com/lbeneston-pass) | 1 | [pass-culture/pass-culture-app-native](https://github.com/pass-culture/pass-culture-app-native) |
+| 23 | [@LeleDallas](https://github.com/LeleDallas) | 1 | [pagopa/io-app](https://github.com/pagopa/io-app) |
+| 24 | [@metaarts](https://github.com/metaarts) | 1 | [IHK-GfI/lux-components-workspace](https://github.com/IHK-GfI/lux-components-workspace) |
+| 25 | [@skjnldsv](https://github.com/skjnldsv) | 1 | [nextcloud-libraries/nextcloud-vue](https://github.com/nextcloud-libraries/nextcloud-vue) |
+| 26 | [@Stefan3002](https://github.com/Stefan3002) | 1 | [canonical/react-components](https://github.com/canonical/react-components) |
+| 27 | [@steinkobben](https://github.com/steinkobben) | 1 | [Tailormap/tailormap-viewer](https://github.com/Tailormap/tailormap-viewer) |
+| 28 | [@TheSeydiCharyyev](https://github.com/TheSeydiCharyyev) | 1 | [ZeusLN/zeus](https://github.com/ZeusLN/zeus) |
+| 29 | [@tormazs](https://github.com/tormazs) | 1 | [home-assistant/frontend](https://github.com/home-assistant/frontend) |
 
 ## Maintainers
 
@@ -47,12 +46,11 @@ Keeping accessibility working in the projects they maintain. Listed separately r
 
 | # | Who | Fixes | Projects |
 | --- | --- | --- | --- |
-| 1 | [@lisalupi](https://github.com/lisalupi) | 3 | [scaleway/ultraviolet](https://github.com/scaleway/ultraviolet) |
-| 2 | [@dmitrivMS](https://github.com/dmitrivMS) | 1 | [microsoft/vscode](https://github.com/microsoft/vscode) |
-| 3 | [@foxbunny](https://github.com/foxbunny) | 1 | [indico/indico](https://github.com/indico/indico) |
-| 4 | [@israelcefrin](https://github.com/israelcefrin) | 1 | [pkp/pkp-docs](https://github.com/pkp/pkp-docs) |
-| 5 | [@mayank99](https://github.com/mayank99) | 1 | [iTwin/stratakit](https://github.com/iTwin/stratakit) |
-| 6 | [@MewenLeHo](https://github.com/MewenLeHo) | 1 | [Orange-OpenSource/a11y-guidelines](https://github.com/Orange-OpenSource/a11y-guidelines) |
-| 7 | [@mrjo118](https://github.com/mrjo118) | 1 | [laurent22/joplin](https://github.com/laurent22/joplin) |
-| 8 | [@United600](https://github.com/United600) | 1 | [huynhsontung/Screenbox](https://github.com/huynhsontung/Screenbox) |
-| 9 | [@Victorsss-Orz](https://github.com/Victorsss-Orz) | 1 | [PrairieLearn/PrairieLearn](https://github.com/PrairieLearn/PrairieLearn) |
+| 1 | [@Ovgodd](https://github.com/Ovgodd) | 11 | [suitenumerique/docs](https://github.com/suitenumerique/docs), [suitenumerique/meet](https://github.com/suitenumerique/meet), [numerique-gouv/lasuite-landingpage](https://github.com/numerique-gouv/lasuite-landingpage) |
+| 2 | [@lisalupi](https://github.com/lisalupi) | 4 | [scaleway/ultraviolet](https://github.com/scaleway/ultraviolet) |
+| 3 | [@DavideOnano](https://github.com/DavideOnano) | 2 | [pagopa/io-app](https://github.com/pagopa/io-app) |
+| 4 | [@foxbunny](https://github.com/foxbunny) | 2 | [indico/indico](https://github.com/indico/indico) |
+| 5 | [@williamjstanton](https://github.com/williamjstanton) | 2 | [Workday/canvas-kit](https://github.com/Workday/canvas-kit) |
+| 6 | [@alten-dturus](https://github.com/alten-dturus) | 1 | [pagopa/pdnd-interop-frontend](https://github.com/pagopa/pdnd-interop-frontend) |
+| 7 | [@personalizedrefrigerator](https://github.com/personalizedrefrigerator) | 1 | [laurent22/joplin](https://github.com/laurent22/joplin) |
+| 8 | [@XOP](https://github.com/XOP) | 1 | [ClickHouse/click-ui](https://github.com/ClickHouse/click-ui) |
